@@ -29,7 +29,7 @@ After completing any change (version bump included), always:
    ```
    vX.Y.Z — <short description of what changed>
    ```
-   Example: `v1.8.3 — add formatSheets(), backfillEventIds(), update CLAUDE.md schema`
+   Example: `v1.11.0 — add setActiveNav(), finishSave(), remove dead code, update CLAUDE.md`
 3. **Push** to the remote if one is configured:
    ```bash
    git remote -v   # check if remote exists
@@ -96,7 +96,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.5.0 | Added Ice Breaker (col K), shifted Last Updated to col L | `migrateSchemaToV15()` |
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
 
-### Current schema (v1.8.0, 14 columns — Roster tab)
+### Current schema (v1.11.0, 14 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
 | A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
