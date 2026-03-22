@@ -96,7 +96,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | H | Food | food | |
 | I | Reporting | reporting | |
 | J | Notes | notes | Special events: `Label: Value\n...` per line |
-| K | Ice Breaker | iceBreaker | Youth Hour only |
+| K | Ice Breaker | iceBreaker | **Deprecated — column retained for alignment; app no longer reads/writes it** |
 | L | Last Updated | updatedAt | Auto-stamped; do not edit |
 | M | Time | time | 24h text e.g. `18:30`; blank = no fixed time |
 | N | Event ID | id | UUID auto-generated; do not edit |
@@ -151,7 +151,7 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 
 | Event Type | Combined? | Notes |
 |------------|-----------|-------|
-| Youth Hour | Yes (shared) | Week 1 Friday; Ice Breaker field shown |
+| Youth Hour | Yes (shared) | Week 1 Friday |
 | Separated LG | No | Week 2 & 4 Friday |
 | Combined | Yes (shared) | Week 3 Friday |
 | Special | Yes (shared) | Week 5+; only show fields that have data |
@@ -160,7 +160,7 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 
 - **Combined/Youth Hour/Special**: saves two rows (JAG1 + JAG2); shared fields use `shared-*` IDs
 - **Organiser**: optional for all types; hide in home page if empty
-- **Ice Breaker**: only shown in form and home page for Youth Hour
+
 
 ---
 

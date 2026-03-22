@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.8.3 (2026-03-22) -->
+  <!-- Version: 1.9.0 (2026-03-22) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -498,7 +498,6 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
       <div class="venue-line">🍽️ Food: <b>${jag1.food || 'TBC'}</b></div>
       <div class="venue-line">📋 Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
-      ${(eventType === 'Youth Hour' && jag1.iceBreaker) ? `<div class="venue-line">🧊 Ice Breaker: <b>${jag1.iceBreaker}</b></div>` : ''}
       ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
     `;
     card.appendChild(shared);
@@ -539,7 +538,6 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         <div class="venue-line">🗣️ Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
         ${(entry.food || entry.group === 'JAG1') ? `<div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>` : ''}
         <div class="venue-line">📋 Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
-        ${eventType === 'Youth Hour' && entry.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${entry.iceBreaker}</b></div>` : ''}
         ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}`;
       card.appendChild(gr);
     });
@@ -763,11 +761,7 @@ function rebuildSections(eventType) {
         <label>Notes (optional)</label>
         <input type="text" id="shared-notes" placeholder="Any special notes..." value="${ref.notes||''}" />
       </div>
-      ${eventType === 'Youth Hour' ? `
-      <div class="field">
-        <label>Ice Breaker (optional)</label>
-        <input type="text" id="shared-icebreaker" placeholder="e.g. Two truths one lie..." value="${ref.iceBreaker||''}" />
-      </div>` : ''}`;
+`;
     container.appendChild(sharedDiv);
     container.appendChild(Object.assign(document.createElement('hr'), { className: 'divider' }));
   }
@@ -822,11 +816,7 @@ function rebuildSections(eventType) {
           <input type="text" id="${grp}-notes" placeholder="Any special notes..." value="${entry.notes||''}" />
         </div>
       </div>
-      ${eventType === 'Youth Hour' ? `
-      <div class="field">
-        <label>Ice Breaker (optional)</label>
-        <input type="text" id="${grp}-icebreaker" placeholder="e.g. Two truths one lie..." value="${entry.iceBreaker||''}" />
-      </div>` : ''}` : ''}`;
+` : ''}`;
 
     container.appendChild(sec);
     if (showShared && idx === 0) {
@@ -947,7 +937,7 @@ function submitForm() {
   const sharedFood       = useShared ? val('shared-food')        : null;
   const sharedRep        = useShared ? val('shared-reporting')   : null;
   const sharedNotes      = useShared ? val('shared-notes')       : null;
-  const sharedIceBreaker = useShared ? val('shared-icebreaker')  : null;
+
 
   const groups = isEdit ? editingEntries.map(e => e.group)
                : combined ? ['JAG1','JAG2'] : activeGroups;
@@ -965,7 +955,7 @@ function submitForm() {
       food:        sharedFood   ?? val(grp + '-food'),
       reporting:   resolveDisplayName(sharedRep    ?? val(grp + '-reporting')),
       notes:       sharedNotes  ?? val(grp + '-notes'),
-      iceBreaker:  sharedIceBreaker ?? val(grp + '-icebreaker'),
+
       time:        val('f-time') || ''
     };
   });
@@ -1404,8 +1394,6 @@ function generateShareText(friday, entries) {
     lines.push('🍽️ Food: '             + (food || 'TBC'));
     const rep = jag1.reporting || jag2.reporting;
     lines.push('📋 Reporting: '        + (rep ? displayName(rep) : 'TBC'));
-    const iceBreaker = jag1.iceBreaker || jag2.iceBreaker;
-    if (iceBreaker) lines.push('🧊 Ice Breaker: ' + iceBreaker);
     const notes = [jag1.notes, jag2.notes].filter(Boolean).join(' · ');
     if (notes) lines.push('📝 ' + notes);
   } else {
