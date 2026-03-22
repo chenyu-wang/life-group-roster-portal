@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.13.1 (2026-03-22) -->
+  <!-- Version: 1.13.2 (2026-03-22) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -470,11 +470,11 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
             : `<div class="venue-line">${line}</div>`;
         }).join('')}` : `
       <div class="venue-line">📍 Venue: <b>${jag1.venue || 'TBC'}</b></div>
-      <div class="venue-line">🗣️ Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
+      <div class="venue-line">📖 Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
       <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
       <div class="venue-line">🍽️ Food: <b>${jag1.food || 'TBC'}</b></div>
       <div class="venue-line">📋 Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
-      ${jag1.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${jag1.iceBreaker}</b></div>` : ''}
+      ${jag1.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(jag1.iceBreaker)}</b></div>` : ''}
       ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
     `;
     card.appendChild(shared);
@@ -508,7 +508,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         <div class="venue-line">📍 Venue: <b>${entry.venue || 'TBC'}</b></div>
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
         <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
-        <div class="venue-line">🗣️ Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
+        <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
         ${(entry.food || entry.group === 'JAG1') ? `<div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>` : ''}
         <div class="venue-line">📋 Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
         ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}`;
@@ -663,7 +663,7 @@ function rebuildSections(eventType) {
       </div>
       <div class="field">
         <label>Notes / Reason</label>
-        <input type="text" id="shared-notes" placeholder="e.g. Public holiday, school camp..." value="${ref.notes||''}" />
+        <input type="text" id="shared-notes" placeholder="Type reason..." value="${ref.notes||''}" />
       </div>`;
     container.appendChild(div);
     return;
@@ -680,7 +680,7 @@ function rebuildSections(eventType) {
     div.innerHTML = `
       <div class="field">
         <label>Venue (optional)</label>
-        <input type="text" id="shared-venue" placeholder="e.g. Canna House" value="${ref.venue||''}" />
+        <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
       </div>
       <div id="special-fields-container"></div>
       <button type="button" class="add-field-btn" onclick="addSpecialField()">+ Add Field</button>`;
@@ -702,7 +702,7 @@ function rebuildSections(eventType) {
     sharedDiv.innerHTML = `
       <div class="field">
         <label>Venue (Shared)</label>
-        <input type="text" id="shared-venue" placeholder="e.g. Canna House" value="${ref.venue||''}" />
+        <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
       </div>
       <div class="field-row">
         <div class="field">
@@ -717,7 +717,7 @@ function rebuildSections(eventType) {
       <div class="field-row">
         <div class="field">
           <label>Food</label>
-          <input type="text" id="shared-food" placeholder="e.g. Parents, Sonia" value="${ref.food||''}" />
+          <input type="text" id="shared-food" placeholder="Type food..." value="${ref.food||''}" />
         </div>
         <div class="field">
           <label>Reporting</label>
@@ -726,12 +726,12 @@ function rebuildSections(eventType) {
       </div>
       <div class="field">
         <label>Notes (optional)</label>
-        <input type="text" id="shared-notes" placeholder="Any special notes..." value="${ref.notes||''}" />
+        <input type="text" id="shared-notes" placeholder="Type notes..." value="${ref.notes||''}" />
       </div>
       ${eventType === 'Youth Hour' ? `
       <div class="field">
         <label>Ice Breaker (optional)</label>
-        <input type="text" id="shared-iceBreaker" placeholder="e.g. Two truths and a lie" value="${ref.iceBreaker||''}" />
+        ${buildSelect('shared-iceBreaker', getActive().map(m => m.name), ref.iceBreaker||'')}
       </div>` : ''}
 `;
     container.appendChild(sharedDiv);
@@ -749,13 +749,13 @@ function rebuildSections(eventType) {
     const sec = document.createElement('div');
     sec.className = `form-section ${grp.toLowerCase()}`;
     sec.innerHTML = `
-      <div class="form-section-title ${titleClass}">${grp}${combined ? ' &middot; Organiser &amp; Food' : ''}</div>
+      <div class="form-section-title ${titleClass}">${grp}${combined ? ' &middot; Organiser' : ''}</div>
 
       ${showAll ? `
       <div class="field-row">
         <div class="field">
           <label>Venue</label>
-          <input type="text" id="${grp}-venue" placeholder="e.g. Home" value="${entry.venue||''}" />
+          <input type="text" id="${grp}-venue" placeholder="Type venue..." value="${entry.venue||''}" />
         </div>
         <div class="field">
           <label>Facilitator</label>
@@ -773,22 +773,27 @@ function rebuildSections(eventType) {
         </div>
       </div>` : ''}
 
-      <div class="field">
-        <label>Organiser (optional)</label>
-        ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
-      </div>
       ${!combined ? `
       <div class="field-row">
         <div class="field">
           <label>Food</label>
-          <input type="text" id="${grp}-food" placeholder="e.g. Parents, Sonia" value="${entry.food||''}" />
+          <input type="text" id="${grp}-food" placeholder="Type food..." value="${entry.food||''}" />
         </div>
         <div class="field">
-          <label>Notes (optional)</label>
-          <input type="text" id="${grp}-notes" placeholder="Any special notes..." value="${entry.notes||''}" />
+          <label>Organiser (optional)</label>
+          ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
         </div>
       </div>
-` : ''}`;
+      <div class="field">
+        <label>Notes (optional)</label>
+        <input type="text" id="${grp}-notes" placeholder="Type notes..." value="${entry.notes||''}" />
+      </div>
+` : `
+      <div class="field">
+        <label>Organiser (optional)</label>
+        ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
+      </div>
+`}`;
 
     container.appendChild(sec);
     if (showShared && idx === 0) {
@@ -927,7 +932,7 @@ function submitForm() {
       food:        sharedFood   ?? val(grp + '-food'),
       reporting:   resolveDisplayName(sharedRep    ?? val(grp + '-reporting')),
       notes:       sharedNotes  ?? val(grp + '-notes'),
-      iceBreaker:  val('shared-iceBreaker'),
+      iceBreaker:  resolveDisplayName(val('shared-iceBreaker')),
       time:        val('f-time') || ''
     };
   });
@@ -1346,13 +1351,13 @@ function generateShareText(friday, entries) {
     const pw  = jag1.pw  || jag2.pw;
     lines.push('🎵 Praise & Worship: ' + (pw  ? displayName(pw)  : 'TBC'));
     const fac = jag1.facilitator || jag2.facilitator;
-    lines.push('🗣️ Facilitator: '      + (fac ? displayName(fac) : 'TBC'));
+    lines.push('📖 Facilitator: '      + (fac ? displayName(fac) : 'TBC'));
     const food = jag1.food || jag2.food;
     lines.push('🍽️ Food: '             + (food || 'TBC'));
     const rep = jag1.reporting || jag2.reporting;
     lines.push('📋 Reporting: '        + (rep ? displayName(rep) : 'TBC'));
     const iceBreaker = jag1.iceBreaker || jag2.iceBreaker;
-    if (iceBreaker) lines.push('🧊 Ice Breaker: ' + iceBreaker);
+    if (iceBreaker) lines.push('🧊 Ice Breaker: ' + displayName(iceBreaker));
     const notes = [jag1.notes, jag2.notes].filter(Boolean).join(' · ');
     if (notes) lines.push('📝 ' + notes);
   } else {
@@ -1361,7 +1366,7 @@ function generateShareText(friday, entries) {
       lines.push('📍 Venue: ' + (entry.venue || 'TBC'));
       if (entry.organiser)   lines.push('🎙️ Organiser: ' + displayName(entry.organiser));
       lines.push('🎵 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
-      lines.push('🗣️ Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
+      lines.push('📖 Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
       if (entry.food || entry.group === 'JAG1') lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
       lines.push('📋 Reporting: ' + (entry.reporting ? displayName(entry.reporting) : 'TBC'));
       if (entry.notes)       lines.push('📝 ' + entry.notes);
