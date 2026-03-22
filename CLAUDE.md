@@ -8,6 +8,18 @@ Google Apps Script web app for JAG Life Group scheduling at Aflame Church.
 
 ---
 
+## MANDATORY: Check and Update CLAUDE.md Each Session
+
+**At the start of every session**, read CLAUDE.md and verify it matches the current code:
+- Schema table reflects actual sheet columns
+- Migration history is complete and up to date
+- UI patterns reference actual helper functions (not stale names)
+- Any removed functions or features are no longer mentioned
+
+**After any change that affects rules, schema, or patterns**, update CLAUDE.md in the same commit — not as a separate follow-up. CLAUDE.md must never lag behind the code.
+
+---
+
 ## MANDATORY: Commit and Push After Every Change
 
 After completing any change (version bump included), always:
@@ -68,14 +80,15 @@ Also update the comment on line 4: `// Version: X.Y.Z (YYYY-MM-DD)`
 
 ### When a schema migration IS needed
 Only required when adding a new column or renaming an existing header. Steps:
-1. Write a `migrateSchemaToVX()` function in Code.gs that:
-   - Checks if migration is already done (idempotent — safe to re-run)
-   - Uses `insertColumnBefore()` or similar — never deletes or overwrites data
-   - Writes only the new header cell; leaves all data rows untouched
-2. Bump the version (MINOR bump: X.Y → X.Y+1)
+1. Bump the version (MINOR bump: X.Y → X.Y+1, e.g. v1.11 → v1.12)
+2. Write a `migrateSchemaToVXY()` function in Code.gs. **The function name MUST match the new version number** — e.g. v1.12 → `migrateSchemaToV112()`. The function must:
+   - Check if migration is already done (idempotent — safe to re-run)
+   - Use `insertColumnBefore()` or `appendColumn` — never delete or overwrite data
+   - Write only the new header cell; leave all data rows untouched
 3. Deploy the new code **first** (old data reads safely due to header mapping)
-4. Run `migrateSchemaToVX()` **once** from the Apps Script editor
+4. Run `migrateSchemaToVXY()` **once** from the Apps Script editor
 5. Verify the sheet has the new header, then the new field is live
+6. **After the migration has been confirmed on the live sheet, remove the migration function from Code.gs** — it is a one-time tool, not permanent code
 
 ### Migration history
 | Version | Change | Migration function |
@@ -114,7 +127,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | H | Role Type | Dropdown: Adult, Student |
 
 - Members tab uses positional reads (row[0]–row[7]) — column order must not change
-- To add a Members column: add `migrateSchemaToVX()` and update `getMembers()` + `saveMember()` + `initializeSheets()`
+- To add a Members column: add `migrateSchemaToVXY()` (see naming rule above) and update `getMembers()` + `saveMember()`
 
 ---
 
@@ -138,7 +151,7 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 | Event ID text colour | Light grey (de-emphasised) | — |
 
 ### Adding a new field — formatting checklist
-1. Run schema migration (`migrateSchemaToVX()`) to add the column header
+1. Run schema migration (`migrateSchemaToVXY()`) to add the column header
 2. Add the JS field key → pixel width to `widths` map in `_formatRosterSheet()`
 3. If it needs a dropdown, add a validation block (copy the Group pattern)
 4. If it's system-managed (auto-filled, not for humans), add a header note + de-emphasise text
@@ -170,4 +183,19 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 - `resolveDisplayName(val)` — reverse lookup from display name back to full name on save
 - `buildSelect(id, options, selected)` — renders `<input>` + `<datalist>` for free-text override; options show display names
 - `suggestEventType(date)` — always drives the default event type preload (never use stored `eventType` as default)
-- After save/delete: set `currentView='home'`, update nav buttons, then call `loadData()` — `renderView()` fires inside the success handler
+- After save/delete: call `finishSave(msg)` — sets `currentView='home'`, calls `setActiveNav('home')`, then `loadData()`
+- Nav updates: use `setActiveNav(view)` — do not inline the `['home','add','members'].forEach(...)` pattern
+- Card footers: use `buildCardFooter(friday, entries, ts)` — do not duplicate the Share/Edit button HTML
+- Encoding entries for `onclick`: use `encodeEntries(obj)` — replaces `JSON.stringify(obj).split('"').join('&quot;')`
+
+---
+
+## Codebase Hygiene Rules
+
+These rules apply on every change. Violations must be cleaned up in the same PR/commit.
+
+1. **Remove one-time functions after use** — migration functions (`migrateSchemaToVXY`), seeder functions (`importX`), setup functions (`initializeSheets`) are tools, not permanent code. Once confirmed run on the live sheet, delete them.
+2. **Remove dead code** — unused helpers, unreachable branches (old event type strings like `'Home-Based LG'`), empty function bodies. If it's not called, delete it.
+3. **No duplicated patterns** — repeated nav toggle, post-save navigation, card footer HTML, and JSON encoding patterns must use the shared helpers above. If you find yourself duplicating a pattern, extract a helper first.
+4. **Cache repeated computations** — don't call the same function twice in the same scope (e.g. `getFridaysRange()` called twice in `getScheduleDates()`). Assign to a variable.
+5. **Use `getLastColumn()` over hardcoded column counts** — `sortRosterSheet` and similar range operations must use `sheet.getLastColumn()`, not a literal number that can drift.
