@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.9.1 (2026-03-22)
+// Version: 1.9.2 (2026-03-22)
 // ============================================================
 
-const VERSION      = '1.9.1';
+const VERSION      = '1.9.2';
 const VERSION_DATE = '2026-03-22';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -76,6 +76,10 @@ function getRosterEntries() {
     const dateObj = new Date(g(row, 'date'));
 
     const rawUpdatedAt = g(row, 'updatedAt');
+    const rawTime      = g(row, 'time');
+    const timeStr      = rawTime instanceof Date
+                         ? Utilities.formatDate(rawTime, tz, 'HH:mm')
+                         : String(rawTime || '');
     entries.push({
       rowIndex:    i + 1,
       date:        Utilities.formatDate(dateObj, tz, 'yyyy-MM-dd'),
@@ -90,7 +94,7 @@ function getRosterEntries() {
       notes:       String(g(row, 'notes')       || ''),
       iceBreaker:  String(g(row, 'iceBreaker')  || ''),
       updatedAt:   rawUpdatedAt ? Utilities.formatDate(new Date(rawUpdatedAt), tz, "yyyy-MM-dd'T'HH:mm:ss") : '',
-      time:        (function() { const v = g(row, 'time'); return v instanceof Date ? Utilities.formatDate(v, tz, 'HH:mm') : String(v || ''); })(),
+      time:        timeStr,
       id:          String(g(row, 'id')          || '')
     });
   }
