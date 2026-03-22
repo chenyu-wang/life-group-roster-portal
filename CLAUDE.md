@@ -96,7 +96,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.5.0 | Added Ice Breaker (col K), shifted Last Updated to col L | `migrateSchemaToV15()` |
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
 
-### Current schema (v1.11.0, 14 columns — Roster tab)
+### Current schema (v1.12.0, 14 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
 | A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
@@ -109,7 +109,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | H | Food | food | |
 | I | Reporting | reporting | |
 | J | Notes | notes | Special events: `Label: Value\n...` per line |
-| K | Ice Breaker | iceBreaker | **Deprecated — column retained for alignment; app no longer reads/writes it** |
+| K | Ice Breaker | iceBreaker | Optional; shown in form and card **only for Youth Hour**; blank for all other event types |
 | L | Last Updated | updatedAt | Auto-stamped; do not edit |
 | M | Time | time | 24h text e.g. `18:30`; blank = no fixed time |
 | N | Event ID | id | UUID auto-generated; do not edit |

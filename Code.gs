@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.11.0 (2026-03-22)
+// Version: 1.12.0 (2026-03-22)
 // ============================================================
 
-const VERSION      = '1.11.0';
+const VERSION      = '1.12.0';
 const VERSION_DATE = '2026-03-22';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -303,7 +303,7 @@ function _formatRosterSheet(ss) {
   const widths = {
     date: 120, group: 70, eventType: 130, venue: 160,
     organiser: 130, pw: 130, facilitator: 130, food: 120,
-    reporting: 130, notes: 220,
+    reporting: 130, notes: 220, iceBreaker: 160,
     time: 80, updatedAt: 145, id: 240
   };
   Object.entries(widths).forEach(function([key, w]) {
