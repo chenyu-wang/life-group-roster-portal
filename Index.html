@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.9.2 (2026-03-22) -->
+  <!-- Version: 1.10.0 (2026-03-22) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -80,9 +80,7 @@
     .loading { text-align: center; padding: 48px; color: #6366f1; font-size: .9rem; }
 
     /* ---- Filter Tabs ---- */
-    .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
-    .filter-btn { border: 1px solid #e2e8f0; background: #fff; border-radius: 20px; padding: 5px 14px; font-size: .8rem; cursor: pointer; color: #64748b; font-weight: 600; transition: all .15s; }
-    .filter-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .year-heading { font-size: .85rem; font-weight: 800; color: #6366f1; padding: 20px 2px 6px; letter-spacing: 1px; border-bottom: 2px solid #e0e7ff; margin-bottom: 8px; }
 
     /* ---- Forms ---- */
     .form-wrap { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 12px; }
@@ -200,7 +198,6 @@
 let allEntries = [];
 let allMembers = [];
 let currentView = 'home';
-let homeFilter  = 'dashboard'; // dashboard | all
 let editingEntries = []; // [] = new, [e] = single edit, [e1,e2] = combined edit
 let editingMember  = null;
 let dashPast   = 4;   // how many past weeks shown in dashboard
@@ -213,7 +210,7 @@ let _dashBusy  = false;
 document.addEventListener('DOMContentLoaded', function() {
   loadData();
   document.getElementById('content').addEventListener('scroll', function() {
-    if (currentView !== 'home' || homeFilter !== 'dashboard' || _dashBusy) return;
+    if (currentView !== 'home' || _dashBusy) return;
     const el = this;
     if (el.scrollTop < 80) {
       _dashBusy = true;
@@ -327,57 +324,15 @@ function renderHome(resetWindow) {
   const c = document.getElementById('content');
   c.innerHTML = '';
 
-  // Filter row
-  const fr = document.createElement('div');
-  fr.className = 'filter-row';
-  fr.innerHTML = `
-    <button class="filter-btn ${homeFilter==='dashboard'?'active':''}" onclick="setFilter('dashboard')">Schedule</button>
-    <button class="filter-btn ${homeFilter==='all'?'active':''}" onclick="setFilter('all')">All</button>
-  `;
-  c.appendChild(fr);
-
-  const fridays = getScheduleDates();
+  const fridays   = getScheduleDates();
   const todayDate = today();
 
-  if (homeFilter === 'all') {
-    let currentMonth = null;
-    fridays.forEach(friday => {
-      const monthKey = friday.getFullYear() + '-' + friday.getMonth();
-      if (monthKey !== currentMonth) {
-        currentMonth = monthKey;
-        const h = document.createElement('div');
-        h.className = 'section-heading';
-        h.textContent = friday.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
-        c.appendChild(h);
-      }
-      const dateStr = toISODate(friday);
-      const dayEntries = allEntries.filter(e => e.date === dateStr);
-      if (dayEntries.length > 0) {
-        c.appendChild(buildEventCard(friday, dayEntries, friday < todayDate));
-      } else {
-        c.appendChild(buildUnscheduledCard(friday, false));
-      }
-    });
-    // After render, scroll to today's section heading
-    requestAnimationFrame(() => {
-      const headings = document.querySelectorAll('.section-heading');
-      const now = todayDate;
-      for (const h of headings) {
-        if (h.textContent.includes(now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }))) {
-          h.scrollIntoView({ block: 'start' });
-          break;
-        }
-      }
-    });
-    return;
-  }
-
-  // Dashboard: dashPast weeks back + upcoming + dashFuture weeks ahead
+  // Find the upcoming event index
   let upcomingIdx = fridays.findIndex(f => f >= todayDate);
   if (upcomingIdx === -1) upcomingIdx = fridays.length - 1;
 
-  const startIdx = Math.max(0, upcomingIdx - dashPast);
-  const endIdx   = Math.min(fridays.length - 1, upcomingIdx + dashFuture);
+  const startIdx       = Math.max(0, upcomingIdx - dashPast);
+  const endIdx         = Math.min(fridays.length - 1, upcomingIdx + dashFuture);
   const upcomingDateStr = toISODate(fridays[upcomingIdx]);
 
   if (startIdx === 0) {
@@ -387,7 +342,18 @@ function renderHome(resetWindow) {
     c.appendChild(tip);
   }
 
+  let shownYear = null;
   fridays.slice(startIdx, endIdx + 1).forEach(friday => {
+    // Year heading when year changes
+    const yr = friday.getFullYear();
+    if (yr !== shownYear) {
+      shownYear = yr;
+      const yh = document.createElement('div');
+      yh.className = 'year-heading';
+      yh.textContent = yr;
+      c.appendChild(yh);
+    }
+
     const dateStr    = toISODate(friday);
     const isUpcoming = dateStr === upcomingDateStr;
     const isPast     = friday < todayDate;
@@ -423,11 +389,6 @@ function renderHome(resetWindow) {
       contentEl.scrollTop = elTop - (viewH / 2) + (elHeight / 2);
     });
   }
-}
-
-function setFilter(f) {
-  homeFilter = f;
-  renderHome();
 }
 
 function buildEventCard(friday, entries, isPast, isUpcoming) {
@@ -1300,10 +1261,10 @@ function getNextFriday() {
 }
 
 // Returns every Friday from Jan 1 of the current year through Dec 31 of next year.
-// Extend endYear if you need a longer planning horizon.
+// Covers current year + 3 ahead so the app stays useful well beyond any single year.
 function getFridaysRange() {
   const startYear = new Date().getFullYear();
-  const endYear   = startYear + 1;
+  const endYear   = startYear + 3;
   const fridays   = [];
   let d = new Date(startYear, 0, 1);
   // Advance to first Friday
