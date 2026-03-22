@@ -1,0 +1,173 @@
+# JAG Life Group Roster Portal — Development Guide
+
+## Project Overview
+Google Apps Script web app for JAG Life Group scheduling at Aflame Church.
+- **Code.gs** — server-side backend (Apps Script)
+- **Index.html** — single-file SPA frontend (all CSS + JS inline)
+- **Google Sheet** (source of truth): `1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4`
+
+---
+
+## MANDATORY: Commit and Push After Every Change
+
+After completing any change (version bump included), always:
+
+1. **Stage** the changed files (`Code.gs`, `Index.html`, `CLAUDE.md`, or whichever were modified)
+2. **Commit** with a message in the format:
+   ```
+   vX.Y.Z — <short description of what changed>
+   ```
+   Example: `v1.8.3 — add formatSheets(), backfillEventIds(), update CLAUDE.md schema`
+3. **Push** to the remote if one is configured:
+   ```bash
+   git remote -v   # check if remote exists
+   git push        # push if remote is available
+   ```
+   If no remote is configured, commit only — do not error or warn.
+
+**Never skip the commit step**, even for small label or style fixes. The commit history is how deployed versions are tracked.
+
+---
+
+## MANDATORY: Version Bump on Every Change
+
+**Always update the version in BOTH files before finishing any change, no exceptions.**
+
+### Code.gs (top of file)
+```js
+const VERSION      = 'X.Y.Z';
+const VERSION_DATE = 'YYYY-MM-DD';
+```
+Also update the comment on line 4: `// Version: X.Y.Z (YYYY-MM-DD)`
+
+### Index.html (line 6)
+```html
+<!-- Version: X.Y.Z (YYYY-MM-DD) -->
+```
+
+### Version convention
+- **PATCH** (Z): UI-only changes, label tweaks, display logic, bug fixes — Index.html only needs bumping
+- **MINOR** (Y): New features, new fields, new event types — bump both files
+- **MAJOR** (X): Breaking schema changes, full rewrites
+
+**Both files must always share the same version number.** When Code.gs changes, bump both. When only Index.html changes (UI/display fixes), bump Index.html to catch up — Code.gs must never be behind Index.html. At the end of every session, both files must show the same version.
+
+---
+
+## Schema / Data Protection Rules
+
+### Core principle
+**Deploying new code to Apps Script NEVER modifies Google Sheet data** — only the script logic changes. The sheet is the source of truth and must be treated as read-only from a structural standpoint unless an explicit migration is run.
+
+### How reads are protected
+`getRosterEntries()` maps columns by **header name** via `_rosterColMap()`, not by position. This means:
+- Reordering columns in the sheet → safe, reads still work
+- Adding new columns manually in the sheet → safe, ignored gracefully
+- Old sheet missing a new column → safe, field defaults to empty string
+- **Never hardcode `row[N]` indices** — always go through `_rosterColMap()`
+
+### When a schema migration IS needed
+Only required when adding a new column or renaming an existing header. Steps:
+1. Write a `migrateSchemaToVX()` function in Code.gs that:
+   - Checks if migration is already done (idempotent — safe to re-run)
+   - Uses `insertColumnBefore()` or similar — never deletes or overwrites data
+   - Writes only the new header cell; leaves all data rows untouched
+2. Bump the version (MINOR bump: X.Y → X.Y+1)
+3. Deploy the new code **first** (old data reads safely due to header mapping)
+4. Run `migrateSchemaToVX()` **once** from the Apps Script editor
+5. Verify the sheet has the new header, then the new field is live
+
+### Migration history
+| Version | Change | Migration function |
+|---------|--------|--------------------|
+| v1.5.0 | Added Ice Breaker (col K), shifted Last Updated to col L | `migrateSchemaToV15()` |
+| v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
+
+### Current schema (v1.8.0, 14 columns — Roster tab)
+| Col | Sheet Header | JS field | Notes |
+|-----|-------------|----------|-------|
+| A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
+| B | Group | group | Dropdown: JAG1, JAG2 |
+| C | Event Type | eventType | Dropdown: Youth Hour, Separated LG, Combined, Special, Cancelled, Replaced |
+| D | Venue | venue | |
+| E | Organiser | organiser | |
+| F | P&W | pw | |
+| G | Facilitator | facilitator | |
+| H | Food | food | |
+| I | Reporting | reporting | |
+| J | Notes | notes | Special events: `Label: Value\n...` per line |
+| K | Ice Breaker | iceBreaker | Youth Hour only |
+| L | Last Updated | updatedAt | Auto-stamped; do not edit |
+| M | Time | time | 24h text e.g. `18:30`; blank = no fixed time |
+| N | Event ID | id | UUID auto-generated; do not edit |
+
+### Members tab schema (fixed, 8 columns)
+| Col | Sheet Header | Notes |
+|-----|-------------|-------|
+| A | Name | |
+| B | Group | Dropdown: JAG1, JAG2, Both |
+| C | Can Organise | Checkbox |
+| D | Can P&W | Checkbox |
+| E | Can Facilitate | Checkbox |
+| F | Can Report | Checkbox |
+| G | Active | Checkbox |
+| H | Role Type | Dropdown: Adult, Student |
+
+- Members tab uses positional reads (row[0]–row[7]) — column order must not change
+- To add a Members column: add `migrateSchemaToVX()` and update `getMembers()` + `saveMember()` + `initializeSheets()`
+
+---
+
+---
+
+## Sheet Formatting (`formatSheets`)
+
+Run `formatSheets()` from the Apps Script editor any time to apply human-readable formatting. It is **fully idempotent** — safe to re-run after any schema change. It never reads or writes data.
+
+### What it applies
+| Element | Roster | Members |
+|---------|--------|---------|
+| Column widths | Per field (see schema table) | Fixed per column |
+| Header freeze | Row 1 | Row 1 |
+| Alternating row colours | ✓ light purple / white | ✓ light purple / white |
+| Date format | `ddd dd/mm/yyyy` on Date col | — |
+| Datetime format | `dd/mm/yyyy hh:mm` on Last Updated | — |
+| Dropdown validation | Group, Event Type | Group, Role Type |
+| Checkbox validation | — | Can Organise, Can P&W, Can Facilitate, Can Report, Active |
+| Header notes | Last Updated, Time, Event ID | — |
+| Event ID text colour | Light grey (de-emphasised) | — |
+
+### Adding a new field — formatting checklist
+1. Run schema migration (`migrateSchemaToVX()`) to add the column header
+2. Add the JS field key → pixel width to `widths` map in `_formatRosterSheet()`
+3. If it needs a dropdown, add a validation block (copy the Group pattern)
+4. If it's system-managed (auto-filled, not for humans), add a header note + de-emphasise text
+5. Run `formatSheets()` from the editor
+6. Update the schema table in this file
+
+---
+
+## Event Type Rules
+
+| Event Type | Combined? | Notes |
+|------------|-----------|-------|
+| Youth Hour | Yes (shared) | Week 1 Friday; Ice Breaker field shown |
+| Separated LG | No | Week 2 & 4 Friday |
+| Combined | Yes (shared) | Week 3 Friday |
+| Special | Yes (shared) | Week 5+; only show fields that have data |
+| Cancelled | N/A | Notes only |
+| Replaced | N/A | Notes only |
+
+- **Combined/Youth Hour/Special**: saves two rows (JAG1 + JAG2); shared fields use `shared-*` IDs
+- **Organiser**: optional for all types; hide in home page if empty
+- **Ice Breaker**: only shown in form and home page for Youth Hour
+
+---
+
+## Key UI Patterns
+
+- `displayName(fullName)` — first name only unless duplicate first name among active members
+- `resolveDisplayName(val)` — reverse lookup from display name back to full name on save
+- `buildSelect(id, options, selected)` — renders `<input>` + `<datalist>` for free-text override; options show display names
+- `suggestEventType(date)` — always drives the default event type preload (never use stored `eventType` as default)
+- After save/delete: set `currentView='home'`, update nav buttons, then call `loadData()` — `renderView()` fires inside the success handler

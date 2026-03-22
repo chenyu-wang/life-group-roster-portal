@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <!-- Version: 1.8.3 (2026-03-22) -->
+  <title>JAG LG Roster</title>
+  <style>
+    /* ---- Reset & Base ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; overflow-x: hidden; max-width: 100vw; }
+
+    /* ---- Layout ---- */
+    #app { display: flex; flex-direction: column; height: 100vh; overflow-x: hidden; }
+    header { background: #6366f1; color: #fff; padding: 14px 16px 10px; flex-shrink: 0; }
+    header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: .3px; }
+    header p  { font-size: .75rem; opacity: .8; margin-top: 2px; }
+    #content  { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 12px 12px 80px; }
+    #bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e2e8f0; display: flex; z-index: 100; }
+    .nav-btn { flex: 1; border: none; background: none; padding: 10px 0 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #94a3b8; font-size: .65rem; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; transition: color .15s; }
+    .nav-btn svg { width: 22px; height: 22px; }
+    .nav-btn.active { color: #6366f1; }
+
+    /* ---- Cards ---- */
+    .date-card { background: #fff; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); overflow: hidden; }
+    .date-header { padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; }
+    .date-label { font-weight: 700; font-size: .95rem; }
+    .date-sub { font-size: .72rem; color: #64748b; margin-top: 1px; }
+    .event-badge { font-size: .68rem; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+    .badge-youth   { background: #fef3c7; color: #92400e; }
+    .badge-sep     { background: #e0e7ff; color: #3730a3; }
+    .badge-home    { background: #d1fae5; color: #065f46; }
+    .badge-special { background: #fce7f3; color: #9d174d; }
+    .badge-tbd       { background: #f1f5f9; color: #64748b; }
+    .badge-cancelled { background: #fee2e2; color: #991b1b; }
+    .badge-replaced  { background: #fef3c7; color: #854d0e; }
+    .cancelled-row   { padding: 10px 14px; color: #64748b; font-size: .85rem; border-bottom: 1px solid #f8fafc; }
+    .cancelled-row.is-cancelled { color: #991b1b; background: #fff8f8; }
+    .cancelled-row.is-replaced  { color: #854d0e; background: #fffbeb; }
+    .group-row { padding: 10px 14px; border-bottom: 1px solid #f8fafc; }
+    .group-row:last-child { border-bottom: none; }
+    .group-tag { display: inline-block; font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-bottom: 6px; }
+    .tag-jag1 { background: #dbeafe; color: #1d4ed8; }
+    .tag-jag2 { background: #ede9fe; color: #6d28d9; }
+    .role-row { display: flex; flex-wrap: wrap; gap: 3px 12px; margin-top: 5px; font-size: .8rem; }
+    .role-pill { color: #475569; white-space: nowrap; }
+    .role-pill b { color: #1e293b; font-weight: 700; }
+    .venue-line { font-size: .8rem; color: #475569; margin: 4px 0 2px; }
+    .venue-line b { color: #1e293b; font-weight: 600; }
+    .card-ts { font-size: .68rem; color: #94a3b8; flex: 1; }
+    .edit-btn  { border: none; background: #f1f5f9; color: #6366f1; font-size: .75rem; cursor: pointer; font-weight: 700; padding: 5px 12px; border-radius: 6px; }
+    .share-btn { border: none; background: #dcfce7; color: #166534; font-size: .75rem; cursor: pointer; font-weight: 700; padding: 5px 12px; border-radius: 6px; }
+    .date-card.is-upcoming { border: 2px solid #6366f1; box-shadow: 0 4px 16px rgba(99,102,241,.18); }
+    .upcoming-banner { background: #6366f1; color: #fff; font-size: .68rem; font-weight: 700; text-align: center; padding: 4px; letter-spacing: .6px; text-transform: uppercase; }
+    .date-card.is-past { background: #f8fafc; }
+    .date-card.is-past .date-label { color: #64748b; }
+    .date-card.is-past .date-sub   { color: #94a3b8; }
+    .date-card.is-past .event-badge { opacity: .6; }
+    .date-card.is-past .venue-line  { color: #94a3b8; }
+    .date-card.is-past .venue-line b { color: #64748b; }
+    .date-card.is-past .role-pill   { color: #94a3b8; }
+    .date-card.is-past .role-pill b { color: #64748b; }
+    .date-card.is-past .shared-section { background: #f1f5f9; }
+    .date-card.is-past .shared-label   { color: #cbd5e1; }
+    .date-card.is-past .card-ts        { color: #cbd5e1; }
+    .date-card.is-past .edit-btn       { color: #94a3b8; background: #f1f5f9; }
+    /* Combined card layout */
+    .shared-section { padding: 10px 14px 8px; background: #fafafe; border-bottom: 1px solid #ede9fe; }
+    .shared-label { font-size: .62rem; font-weight: 800; color: #a5b4fc; text-transform: uppercase; letter-spacing: .7px; margin-bottom: 4px; }
+    .org-split { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #f1f5f9; }
+    .org-col { padding: 8px 14px; }
+    .org-col + .org-col { border-left: 1px solid #f1f5f9; }
+    .card-footer { padding: 7px 14px 10px; border-top: 1px solid #f8fafc; display: flex; gap: 8px; align-items: center; }
+    /* Separated card - tighter edit row */
+    .sep-group-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+    /* ---- Empty / Loading States ---- */
+    .empty { text-align: center; padding: 48px 24px; color: #94a3b8; }
+    .empty svg { width: 48px; height: 48px; margin: 0 auto 12px; display: block; opacity: .4; }
+    .loading { text-align: center; padding: 48px; color: #6366f1; font-size: .9rem; }
+
+    /* ---- Filter Tabs ---- */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .filter-btn { border: 1px solid #e2e8f0; background: #fff; border-radius: 20px; padding: 5px 14px; font-size: .8rem; cursor: pointer; color: #64748b; font-weight: 600; transition: all .15s; }
+    .filter-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+    /* ---- Forms ---- */
+    .form-wrap { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 12px; }
+    .form-title { font-weight: 700; font-size: 1rem; margin-bottom: 14px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+    .form-section { border-left: 3px solid #e2e8f0; padding-left: 12px; margin-bottom: 14px; }
+    .form-section.jag1 { border-color: #3b82f6; }
+    .form-section.jag2 { border-color: #8b5cf6; }
+    .form-section-title { font-size: .8rem; font-weight: 700; margin-bottom: 10px; }
+    .form-section-title.jag1 { color: #1d4ed8; }
+    .form-section-title.jag2 { color: #6d28d9; }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-size: .78rem; font-weight: 600; color: #475569; margin-bottom: 4px; }
+    select, input[type=text], input[type=date], input[type=time] {
+      width: 100%; padding: 9px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+      font-size: .875rem; color: #1e293b; background: #fff; appearance: none; -webkit-appearance: none;
+      outline: none; transition: border-color .15s;
+    }
+    select:focus, input:focus { border-color: #6366f1; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .hint { font-size: .7rem; color: #94a3b8; margin-top: 3px; }
+    .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: .9rem; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    .btn:active { opacity: .85; }
+    .btn-primary { background: #6366f1; color: #fff; }
+    .btn-danger  { background: #fee2e2; color: #dc2626; margin-top: 8px; }
+    .btn-secondary { background: #f1f5f9; color: #475569; margin-top: 8px; }
+    .divider { border: none; border-top: 1px solid #f1f5f9; margin: 14px 0; }
+    .toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toggle-btn { border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: 7px 14px; font-size: .82rem; cursor: pointer; color: #64748b; font-weight: 600; transition: all .15s; }
+    .toggle-btn.on { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+    /* ---- Members ---- */
+    .member-card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.07); display: flex; align-items: center; gap: 12px; }
+    .member-avatar { width: 38px; height: 38px; border-radius: 50%; background: #6366f1; color: #fff; font-weight: 700; font-size: .9rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .member-info { flex: 1; min-width: 0; }
+    .member-name { font-weight: 700; font-size: .9rem; }
+    .member-meta { font-size: .72rem; color: #64748b; margin-top: 2px; }
+    .member-roles { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+    .role-chip { font-size: .62rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: #e0e7ff; color: #3730a3; }
+    .member-edit { border: none; background: none; color: #94a3b8; cursor: pointer; padding: 4px; }
+    .inactive-badge { background: #f1f5f9; color: #94a3b8; }
+    .add-member-btn { width: 100%; padding: 11px; border: 2px dashed #e2e8f0; border-radius: 10px; background: none; color: #6366f1; font-weight: 700; font-size: .875rem; cursor: pointer; transition: border-color .15s; }
+    .add-member-btn:hover { border-color: #6366f1; }
+
+    /* ---- Special Event Custom Fields ---- */
+    .special-field-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .special-field-row button { border: none; background: #fee2e2; color: #dc2626; border-radius: 6px; padding: 6px 10px; font-size: .8rem; cursor: pointer; white-space: nowrap; }
+    .add-field-btn { border: 2px dashed #e2e8f0; background: none; border-radius: 8px; padding: 8px; width: 100%; color: #6366f1; font-weight: 700; font-size: .82rem; cursor: pointer; margin-top: 4px; }
+
+    /* ---- Custom Dropdown ---- */
+    .dd-wrap { position: relative; }
+    .dd-list { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #c7d2fe; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.12); z-index: 60; max-height: 200px; overflow-y: auto; margin-top: 2px; }
+    .dd-list.open { display: block; }
+    .dd-opt { padding: 9px 12px; font-size: .875rem; color: #1e293b; cursor: pointer; }
+    .dd-opt:hover, .dd-opt.active { background: #6366f1; color: #fff; }
+
+    /* ---- Toast ---- */
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1e293b; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap; z-index: 200; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ---- Modal ---- */
+    #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 150; display: none; align-items: flex-end; }
+    #modal-overlay.open { display: flex; }
+    #modal-box { background: #fff; border-radius: 16px 16px 0 0; width: 100%; max-height: 90vh; overflow-y: auto; padding: 20px 16px 32px; }
+    .modal-handle { width: 36px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: 0 auto 16px; }
+
+    /* ---- Misc ---- */
+    .section-heading { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: #94a3b8; margin: 16px 0 8px; }
+    .unscheduled-card { background: #fff; border-radius: 12px; margin-bottom: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06); border: 1.5px dashed #e2e8f0; }
+    .unscheduled-inner { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; }
+    .unscheduled-date { font-size: .9rem; color: #94a3b8; font-weight: 600; }
+    .unscheduled-hint { font-size: .7rem; color: #cbd5e1; }
+    .add-quick-btn { border: none; background: #f1f5f9; color: #6366f1; font-weight: 700; font-size: .75rem; padding: 5px 11px; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>JAG Life Group Roster</h1>
+    <p id="header-sub">Loading...</p>
+  </header>
+
+  <div id="content">
+    <div class="loading" id="loading-msg">Loading roster...</div>
+  </div>
+
+  <nav id="bottom-nav">
+    <button class="nav-btn active" id="nav-home" onclick="showView('home')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      Home
+    </button>
+    <button class="nav-btn" id="nav-add" onclick="showView('add')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Add
+    </button>
+    <button class="nav-btn" id="nav-members" onclick="showView('members')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Members
+    </button>
+  </nav>
+</div>
+
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal-box">
+    <div class="modal-handle"></div>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// =============================================
+// State
+// =============================================
+let allEntries = [];
+let allMembers = [];
+let currentView = 'home';
+let homeFilter  = 'dashboard'; // dashboard | all
+let editingEntries = []; // [] = new, [e] = single edit, [e1,e2] = combined edit
+let editingMember  = null;
+let dashPast   = 4;   // how many past weeks shown in dashboard
+let dashFuture = 4;   // how many future weeks shown in dashboard
+let _dashBusy  = false;
+
+// =============================================
+// Init
+// =============================================
+document.addEventListener('DOMContentLoaded', function() {
+  loadData();
+  document.getElementById('content').addEventListener('scroll', function() {
+    if (currentView !== 'home' || homeFilter !== 'dashboard' || _dashBusy) return;
+    const el = this;
+    if (el.scrollTop < 80) {
+      _dashBusy = true;
+      const oldH = el.scrollHeight;
+      dashPast += 4;
+      renderHome(false);
+      requestAnimationFrame(function() {
+        el.scrollTop += el.scrollHeight - oldH;
+        _dashBusy = false;
+      });
+    } else if (el.scrollTop + el.clientHeight > el.scrollHeight - 80) {
+      _dashBusy = true;
+      dashFuture += 4;
+      renderHome(false);
+      requestAnimationFrame(function() { _dashBusy = false; });
+    }
+  });
+});
+
+function loadData() {
+  google.script.run
+    .withSuccessHandler(function(data) {
+      allEntries = data.entries || [];
+      allMembers = data.members || [];
+      const loadingEl = document.getElementById('loading-msg');
+      if (loadingEl) loadingEl.remove();
+      updateHeaderSub();
+      renderView();
+    })
+    .withFailureHandler(function(err) {
+      document.getElementById('loading-msg').textContent = 'Error loading data: ' + err.message;
+    })
+    .getAllData();
+
+  google.script.run
+    .withSuccessHandler(function(v) {
+      const el = document.getElementById('header-sub');
+      if (el) el.textContent = 'v' + v.version;
+    })
+    .getVersion();
+}
+
+function updateHeaderSub() {}
+
+function today() {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// =============================================
+// Navigation
+// =============================================
+function showView(view) {
+  currentView = view;
+  ['home','add','members'].forEach(v => {
+    document.getElementById('nav-' + v).classList.toggle('active', v === view);
+  });
+  if (view === 'add') {
+    editingEntries = [];
+    renderAdd();
+    document.getElementById('content').scrollTop = 0;
+  } else if (view === 'home') {
+    renderHome();
+  } else if (view === 'members') {
+    renderMembers();
+    document.getElementById('content').scrollTop = 0;
+  }
+}
+
+function renderView() {
+  if      (currentView === 'home')    renderHome();
+  else if (currentView === 'add')     renderAdd();
+  else if (currentView === 'members') renderMembers();
+}
+
+// =============================================
+// Helpers: display name + relative time
+// =============================================
+function displayName(fullName) {
+  if (!fullName || fullName === '') return 'TBC';
+  const first = fullName.split(' ')[0];
+  const dup = allMembers.some(m => m.active && m.name !== fullName && m.name.split(' ')[0] === first);
+  return dup ? fullName : first;
+}
+
+function resolveDisplayName(val) {
+  if (!val) return val;
+  const match = allMembers.find(m => m.active && displayName(m.name) === val);
+  return match ? match.name : val;
+}
+
+function timeAgo(isoStr) {
+  if (!isoStr) return '';
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  if (d < 7)  return d + 'd ago';
+  return new Date(isoStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+}
+
+// =============================================
+// Home View
+// =============================================
+function renderHome(resetWindow) {
+  if (resetWindow !== false) { dashPast = 4; dashFuture = 4; }
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+
+  // Filter row
+  const fr = document.createElement('div');
+  fr.className = 'filter-row';
+  fr.innerHTML = `
+    <button class="filter-btn ${homeFilter==='dashboard'?'active':''}" onclick="setFilter('dashboard')">Schedule</button>
+    <button class="filter-btn ${homeFilter==='all'?'active':''}" onclick="setFilter('all')">All</button>
+  `;
+  c.appendChild(fr);
+
+  const fridays = getScheduleDates();
+  const todayDate = today();
+
+  if (homeFilter === 'all') {
+    let currentMonth = null;
+    fridays.forEach(friday => {
+      const monthKey = friday.getFullYear() + '-' + friday.getMonth();
+      if (monthKey !== currentMonth) {
+        currentMonth = monthKey;
+        const h = document.createElement('div');
+        h.className = 'section-heading';
+        h.textContent = friday.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+        c.appendChild(h);
+      }
+      const dateStr = toISODate(friday);
+      const dayEntries = allEntries.filter(e => e.date === dateStr);
+      if (dayEntries.length > 0) {
+        c.appendChild(buildEventCard(friday, dayEntries, friday < todayDate));
+      } else {
+        c.appendChild(buildUnscheduledCard(friday, false));
+      }
+    });
+    // After render, scroll to today's section heading
+    requestAnimationFrame(() => {
+      const headings = document.querySelectorAll('.section-heading');
+      const now = todayDate;
+      for (const h of headings) {
+        if (h.textContent.includes(now.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }))) {
+          h.scrollIntoView({ block: 'start' });
+          break;
+        }
+      }
+    });
+    return;
+  }
+
+  // Dashboard: dashPast weeks back + upcoming + dashFuture weeks ahead
+  let upcomingIdx = fridays.findIndex(f => f >= todayDate);
+  if (upcomingIdx === -1) upcomingIdx = fridays.length - 1;
+
+  const startIdx = Math.max(0, upcomingIdx - dashPast);
+  const endIdx   = Math.min(fridays.length - 1, upcomingIdx + dashFuture);
+  const upcomingDateStr = toISODate(fridays[upcomingIdx]);
+
+  if (startIdx === 0) {
+    const tip = document.createElement('div');
+    tip.style.cssText = 'text-align:center;padding:10px 0 4px;font-size:.75rem;color:#94a3b8;';
+    tip.textContent = 'Beginning of schedule';
+    c.appendChild(tip);
+  }
+
+  fridays.slice(startIdx, endIdx + 1).forEach(friday => {
+    const dateStr    = toISODate(friday);
+    const isUpcoming = dateStr === upcomingDateStr;
+    const isPast     = friday < todayDate;
+    const dayEntries = allEntries.filter(e => e.date === dateStr);
+
+    let card;
+    if (dayEntries.length > 0) {
+      card = buildEventCard(friday, dayEntries, isPast, isUpcoming);
+    } else {
+      card = buildUnscheduledCard(friday, isUpcoming);
+    }
+
+    if (isUpcoming) card.id = 'upcoming-card';
+    c.appendChild(card);
+  });
+
+  if (endIdx === fridays.length - 1) {
+    const tip = document.createElement('div');
+    tip.style.cssText = 'text-align:center;padding:4px 0 10px;font-size:.75rem;color:#94a3b8;';
+    tip.textContent = 'End of schedule';
+    c.appendChild(tip);
+  }
+
+  // Only auto-scroll to upcoming on a fresh render (not when extending the window)
+  if (resetWindow !== false) {
+    requestAnimationFrame(() => {
+      const el = document.getElementById('upcoming-card');
+      if (!el) return;
+      const contentEl = document.getElementById('content');
+      const elTop    = el.offsetTop;
+      const elHeight = el.offsetHeight;
+      const viewH    = contentEl.clientHeight;
+      contentEl.scrollTop = elTop - (viewH / 2) + (elHeight / 2);
+    });
+  }
+}
+
+function setFilter(f) {
+  homeFilter = f;
+  renderHome();
+}
+
+function buildEventCard(friday, entries, isPast, isUpcoming) {
+  const card = document.createElement('div');
+  card.className = 'date-card' + (isUpcoming ? ' is-upcoming' : '') + (isPast && !isUpcoming ? ' is-past' : '');
+
+  const eventType = entries[0].eventType || 'Special';
+  const combined  = isCombinedType(eventType);
+  const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
+  const dateSub = combined ? (eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
+  const timeStr = entries[0] && entries[0].time ? formatTime(entries[0].time) : '';
+  const dateSub2 = [timeStr, dateSub].filter(Boolean).join(' · ');
+
+  // ---- Header ----
+  const hdr = document.createElement('div');
+  hdr.innerHTML = `
+    ${isUpcoming ? '<div class="upcoming-banner">Next LG</div>' : ''}
+    <div class="date-header">
+      <div>
+        <div class="date-label">${formatDateLong(friday)}</div>
+        ${dateSub2 ? `<div class="date-sub">${dateSub2}</div>` : ''}
+      </div>
+      <span class="event-badge ${eventTypeBadge(eventType)}">${eventType}</span>
+    </div>`;
+  card.appendChild(hdr);
+
+  // ---- Cancelled / Replaced ----
+  if (isCancelledOrReplaced) {
+    const typeClass = eventType === 'Cancelled' ? 'is-cancelled' : 'is-replaced';
+    const icon = eventType === 'Cancelled' ? '⚠️' : '🔄';
+    const note = entries[0] && entries[0].notes ? ` · ${entries[0].notes}` : '';
+    const row = document.createElement('div');
+    row.className = `cancelled-row ${typeClass}`;
+    row.innerHTML = `${icon} ${eventType}${note}`;
+    card.appendChild(row);
+    const ts = entries[0] && entries[0].updatedAt ? entries[0].updatedAt : '';
+    const footer = document.createElement('div');
+    footer.className = 'card-footer';
+    const enc = JSON.stringify(entries).split('"').join('&quot;');
+    const fridayEncC = JSON.stringify(friday).split('"').join('&quot;');
+    footer.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${enc})">📤 Share</button><button class="edit-btn" onclick="openEditEntries(${enc})">✏️ Edit</button>`;
+    card.appendChild(footer);
+    return card;
+  }
+
+  // ---- Combined layout ----
+  if (combined) {
+    const jag1 = entries.find(e => e.group === 'JAG1') || {};
+    const jag2 = entries.find(e => e.group === 'JAG2') || {};
+    const notes = [jag1.notes, jag2.notes].filter(Boolean).join(' · ');
+    const ts    = jag1.updatedAt || jag2.updatedAt || '';
+
+    const isSpecial = eventType === 'Special';
+    const shared = document.createElement('div');
+    shared.className = 'shared-section';
+    shared.innerHTML = `
+      <div class="shared-label">${isSpecial ? 'Special Event' : 'Shared'}</div>
+      ${isSpecial ? `
+        ${jag1.venue ? `<div class="venue-line">📍 Venue: <b>${jag1.venue}</b></div>` : ''}
+        ${(jag1.notes||'').split('\n').filter(Boolean).map(line => {
+          const ci = line.indexOf(':');
+          return ci > 0
+            ? `<div class="venue-line"><b>${line.slice(0,ci).trim()}:</b> ${line.slice(ci+1).trim()}</div>`
+            : `<div class="venue-line">${line}</div>`;
+        }).join('')}` : `
+      <div class="venue-line">📍 Venue: <b>${jag1.venue || 'TBC'}</b></div>
+      <div class="venue-line">🗣️ Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
+      <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
+      <div class="venue-line">🍽️ Food: <b>${jag1.food || 'TBC'}</b></div>
+      <div class="venue-line">📋 Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
+      ${(eventType === 'Youth Hour' && jag1.iceBreaker) ? `<div class="venue-line">🧊 Ice Breaker: <b>${jag1.iceBreaker}</b></div>` : ''}
+      ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
+    `;
+    card.appendChild(shared);
+
+    const orgSplit = document.createElement('div');
+    orgSplit.className = 'org-split';
+    [['JAG1', jag1, 'tag-jag1'], ['JAG2', jag2, 'tag-jag2']].forEach(([label, e, tag]) => {
+      const col = document.createElement('div');
+      col.className = 'org-col';
+      col.innerHTML = `
+        <span class="group-tag ${tag}">${label}</span>
+        ${e.organiser ? `<div style="font-size:.82rem;margin-top:3px;">🎙️ Organiser: <b>${displayName(e.organiser)}</b></div>` : ''}`;
+      orgSplit.appendChild(col);
+    });
+    if (eventType !== 'Special' && (jag1.organiser || jag2.organiser)) card.appendChild(orgSplit);
+
+    const enc = JSON.stringify(entries).split('"').join('&quot;');
+    const footer = document.createElement('div');
+    footer.className = 'card-footer';
+    footer.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${enc})">📤 Share</button><button class="edit-btn" onclick="openEditEntries(${enc})">✏️ Edit</button>`;
+    card.appendChild(footer);
+
+  } else {
+    // ---- Separated layout ----
+    const allTs = entries.map(e => e.updatedAt).filter(Boolean).sort().pop() || '';
+
+    [...entries].sort((a,b) => a.group === 'JAG1' ? -1 : 1).forEach(entry => {
+      const gr  = document.createElement('div');
+      gr.className = 'group-row';
+      const tag = entry.group === 'JAG1' ? 'tag-jag1' : 'tag-jag2';
+      gr.innerHTML = `
+        <div class="sep-group-header">
+          <span class="group-tag ${tag}">${entry.group}</span>
+        </div>
+        <div class="venue-line">📍 Venue: <b>${entry.venue || 'TBC'}</b></div>
+        ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
+        <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
+        <div class="venue-line">🗣️ Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
+        ${(entry.food || entry.group === 'JAG1') ? `<div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>` : ''}
+        <div class="venue-line">📋 Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
+        ${eventType === 'Youth Hour' && entry.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${entry.iceBreaker}</b></div>` : ''}
+        ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}`;
+      card.appendChild(gr);
+    });
+
+    const allEnc = JSON.stringify(entries).split('"').join('&quot;');
+    const footer = document.createElement('div');
+    footer.className = 'card-footer';
+    footer.innerHTML = `<span class="card-ts">${allTs ? 'Updated ' + timeAgo(allTs) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${allEnc})">📤 Share</button><button class="edit-btn" onclick="openEditEntries(${allEnc})">✏️ Edit</button>`;
+    card.appendChild(footer);
+  }
+
+  return card;
+}
+
+function buildUnscheduledCard(friday, isUpcoming) {
+  const card = document.createElement('div');
+  card.className = 'unscheduled-card' + (isUpcoming ? ' is-upcoming' : '');
+  const suggested = suggestEventType(friday);
+  card.innerHTML = `
+    ${isUpcoming ? '<div class="upcoming-banner">Next LG</div>' : ''}
+    <div class="unscheduled-inner">
+      <div>
+        <div class="unscheduled-date">${formatDateShort(friday)}</div>
+        <div class="unscheduled-hint">Suggested: ${suggested}</div>
+      </div>
+      <button class="add-quick-btn" onclick="openAddForDate('${toISODate(friday)}')">+ Schedule</button>
+    </div>
+  `;
+  return card;
+}
+
+// =============================================
+// Add / Edit View
+// =============================================
+function renderAdd(prefillDate) {
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+
+  const isEdit         = editingEntries.length > 0;
+  const isCombinedEdit = isEdit && editingEntries.length === 2;
+  const refEntry       = isEdit ? editingEntries[0] : null;
+  const defaultDate    = prefillDate || (refEntry ? refEntry.date : toISODate(getNextFriday()));
+  const _legacyTypeMap = { 'JAG1&2 Combined': 'Combined', 'TBD': 'Special' };
+  const defaultType    = isEdit
+    ? (_legacyTypeMap[refEntry.eventType] || refEntry.eventType)
+    : suggestEventType(new Date(defaultDate));
+
+  const _stdTypes = ['Youth Hour', 'Separated LG', 'Combined'];
+  const defaultTime = isEdit
+    ? (refEntry.time || (_stdTypes.includes(defaultType) ? '18:30' : ''))
+    : (_stdTypes.includes(defaultType) ? '18:30' : '');
+
+  let titleText = 'Schedule Event';
+  if (isCombinedEdit) titleText = 'Edit Event';
+  else if (isEdit)    titleText = 'Edit Event';
+
+  let deleteBtn = '';
+  if (isCombinedEdit) {
+    const idxList = editingEntries.map(e => e.rowIndex).join(',');
+    deleteBtn = `<button class="btn btn-danger" onclick="confirmDeleteEntries([${idxList}], '${refEntry.date}', 'combined event')">Delete This Event</button>`;
+  } else if (isEdit) {
+    deleteBtn = `<button class="btn btn-danger" onclick="confirmDeleteEntries([${refEntry.rowIndex}], '${refEntry.date}', '${refEntry.group}')">Delete This Entry</button>`;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="form-wrap">
+      <div class="form-title">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        ${titleText}
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="f-date" value="${defaultDate}" onchange="onDateChange(this.value)" ${isEdit ? 'readonly style="background:#f8fafc;"' : ''} />
+        </div>
+        <div class="field">
+          <label>Time</label>
+          <input type="time" id="f-time" value="${defaultTime}" style="background:#fff;color:#1e293b;" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Event Type</label>
+        <select id="f-type" onchange="onTypeChange(this.value)">
+          <option value="Youth Hour"      ${defaultType==='Youth Hour'      ?'selected':''}>Youth Hour</option>
+          <option value="Separated LG"   ${defaultType==='Separated LG'   ?'selected':''}>Separated LG</option>
+          <option value="Combined"       ${defaultType==='Combined'       ?'selected':''}>Combined</option>
+          <option value="Special"        ${defaultType==='Special'        ?'selected':''}>Special</option>
+          <option value="Cancelled"      ${defaultType==='Cancelled'      ?'selected':''}>Cancelled</option>
+          <option value="Replaced"       ${defaultType==='Replaced'       ?'selected':''}>Replaced</option>
+        </select>
+      </div>
+
+      <div id="group-selector" style="margin-bottom:14px;${isEdit?'display:none;':''}">
+        <label>Groups to Schedule</label>
+        <div class="toggle-row" style="margin-top:6px;">
+          <button class="toggle-btn on" id="grp-jag1" onclick="toggleGroup('JAG1')">JAG1</button>
+          <button class="toggle-btn on" id="grp-jag2" onclick="toggleGroup('JAG2')">JAG2</button>
+        </div>
+      </div>
+
+      <div id="form-sections"></div>
+
+      <button class="btn btn-primary" onclick="submitForm()">${isEdit ? 'Save Changes' : 'Save to Roster'}</button>
+      ${deleteBtn}
+      ${isEdit ? `<button class="btn btn-secondary" onclick="editingEntries=[];showView('home')">Cancel</button>` : ''}
+    </div>
+  `;
+  c.appendChild(wrap);
+  rebuildSections(defaultType);
+}
+
+let activeGroups = ['JAG1', 'JAG2'];
+
+function toggleGroup(grp) {
+  const btn = document.getElementById('grp-' + grp.toLowerCase());
+  if (activeGroups.includes(grp) && activeGroups.length > 1) {
+    activeGroups = activeGroups.filter(g => g !== grp);
+    btn.classList.remove('on');
+  } else if (!activeGroups.includes(grp)) {
+    activeGroups.push(grp);
+    btn.classList.add('on');
+  }
+  rebuildSections(document.getElementById('f-type').value);
+}
+
+function onDateChange(val) {
+  const suggested = suggestEventType(new Date(val));
+  document.getElementById('f-type').value = suggested;
+  rebuildSections(suggested);
+}
+
+function onTypeChange(val) {
+  rebuildSections(val);
+}
+
+function rebuildSections(eventType) {
+  const container = document.getElementById('form-sections');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const isEdit         = editingEntries.length > 0;
+  const combined       = isCombinedType(eventType);
+
+  // Cancelled / Replaced: only show a notes field
+  if (eventType === 'Cancelled' || eventType === 'Replaced') {
+    const ref  = editingEntries[0] || {};
+    const icon = eventType === 'Cancelled' ? '⚠️' : '🔄';
+    const msg  = eventType === 'Cancelled' ? 'Mark this LG as cancelled.' : 'Mark as replacing a regular session.';
+    const div  = document.createElement('div');
+    div.innerHTML = `
+      <div style="background:${eventType==='Cancelled'?'#fff8f8':'#fffbeb'};border-radius:8px;padding:12px;margin-bottom:12px;font-size:.85rem;font-weight:600;color:${eventType==='Cancelled'?'#991b1b':'#854d0e'};">
+        ${icon} ${msg}
+      </div>
+      <div class="field">
+        <label>Notes / Reason</label>
+        <input type="text" id="shared-notes" placeholder="e.g. Public holiday, school camp..." value="${ref.notes||''}" />
+      </div>`;
+    container.appendChild(div);
+    return;
+  }
+
+  // Special: venue + user-defined custom fields (stored as "Label: Value\n..." in notes)
+  if (eventType === 'Special') {
+    const ref = editingEntries[0] || {};
+    const existing = (ref.notes || '').split('\n').filter(Boolean).map(line => {
+      const idx = line.indexOf(':');
+      return idx > 0 ? { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() } : { label: '', value: line.trim() };
+    });
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <div class="field">
+        <label>Venue (optional)</label>
+        <input type="text" id="shared-venue" placeholder="e.g. Canna House" value="${ref.venue||''}" />
+      </div>
+      <div id="special-fields-container"></div>
+      <button type="button" class="add-field-btn" onclick="addSpecialField()">+ Add Field</button>`;
+    container.appendChild(div);
+    const sfContainer = div.querySelector('#special-fields-container');
+    const seedFields = existing.length ? existing : [{ label: '', value: '' }];
+    seedFields.forEach(f => addSpecialField(f.label, f.value, sfContainer));
+    return;
+  }
+
+  const groups = isEdit
+    ? editingEntries.map(e => e.group)
+    : combined ? ['JAG1','JAG2'] : activeGroups;
+
+  const showShared = combined && groups.length === 2;
+  if (showShared) {
+    const ref = editingEntries.find(e => e.group === 'JAG1') || editingEntries[0] || {};
+    const sharedDiv = document.createElement('div');
+    sharedDiv.innerHTML = `
+      <div class="field">
+        <label>Venue (Shared)</label>
+        <input type="text" id="shared-venue" placeholder="e.g. Canna House" value="${ref.venue||''}" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Facilitator</label>
+          ${buildSelect('shared-facilitator', getEligibleFacilitators(eventType, null), ref.facilitator||'')}
+        </div>
+        <div class="field">
+          <label>Praise &amp; Worship</label>
+          ${buildSelect('shared-pw', getEligible('pw', null, true), ref.pw||'')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Food</label>
+          <input type="text" id="shared-food" placeholder="e.g. Parents, Sonia" value="${ref.food||''}" />
+        </div>
+        <div class="field">
+          <label>Reporting</label>
+          ${buildSelect('shared-reporting', getEligible('reporting', null, true), ref.reporting||'')}
+        </div>
+      </div>
+      <div class="field">
+        <label>Notes (optional)</label>
+        <input type="text" id="shared-notes" placeholder="Any special notes..." value="${ref.notes||''}" />
+      </div>
+      ${eventType === 'Youth Hour' ? `
+      <div class="field">
+        <label>Ice Breaker (optional)</label>
+        <input type="text" id="shared-icebreaker" placeholder="e.g. Two truths one lie..." value="${ref.iceBreaker||''}" />
+      </div>` : ''}`;
+    container.appendChild(sharedDiv);
+    container.appendChild(Object.assign(document.createElement('hr'), { className: 'divider' }));
+  }
+
+  groups.forEach((grp, idx) => {
+    // Skip per-group sections for Special events
+    if (eventType === 'Special') return;
+
+    const entry      = editingEntries.find(e => e.group === grp) || {};
+    const titleClass = grp === 'JAG1' ? 'jag1' : 'jag2';
+    const showAll    = !combined || groups.length === 1;
+
+    const sec = document.createElement('div');
+    sec.className = `form-section ${grp.toLowerCase()}`;
+    sec.innerHTML = `
+      <div class="form-section-title ${titleClass}">${grp}${combined ? ' &middot; Organiser &amp; Food' : ''}</div>
+
+      ${showAll ? `
+      <div class="field-row">
+        <div class="field">
+          <label>Venue</label>
+          <input type="text" id="${grp}-venue" placeholder="e.g. Home" value="${entry.venue||''}" />
+        </div>
+        <div class="field">
+          <label>Facilitator</label>
+          ${buildSelect(grp+'-facilitator', getEligibleFacilitators(eventType, grp), entry.facilitator||'')}
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Praise &amp; Worship</label>
+          ${buildSelect(grp+'-pw', getEligible('pw', grp, false), entry.pw||'')}
+        </div>
+        <div class="field">
+          <label>Reporting</label>
+          ${buildSelect(grp+'-reporting', getEligible('reporting', grp, false), entry.reporting||'')}
+        </div>
+      </div>` : ''}
+
+      <div class="field">
+        <label>Organiser (optional)</label>
+        ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
+      </div>
+      ${!combined ? `
+      <div class="field-row">
+        <div class="field">
+          <label>Food</label>
+          <input type="text" id="${grp}-food" placeholder="e.g. Parents, Sonia" value="${entry.food||''}" />
+        </div>
+        <div class="field">
+          <label>Notes (optional)</label>
+          <input type="text" id="${grp}-notes" placeholder="Any special notes..." value="${entry.notes||''}" />
+        </div>
+      </div>
+      ${eventType === 'Youth Hour' ? `
+      <div class="field">
+        <label>Ice Breaker (optional)</label>
+        <input type="text" id="${grp}-icebreaker" placeholder="e.g. Two truths one lie..." value="${entry.iceBreaker||''}" />
+      </div>` : ''}` : ''}`;
+
+    container.appendChild(sec);
+    if (showShared && idx === 0) {
+      container.appendChild(Object.assign(document.createElement('hr'), { className: 'divider' }));
+    }
+  });
+}
+
+// Renders a text input with datalist so leaders can pick from the list OR type a custom name.
+function addSpecialField(label, value, container) {
+  const c = container || document.getElementById('special-fields-container');
+  if (!c) return;
+  const row = document.createElement('div');
+  row.className = 'special-field-row';
+  row.innerHTML = `
+    <input type="text" class="sf-label" placeholder="Field name" value="${(label||'').replace(/"/g,'&quot;')}" style="background:#fff;color:#1e293b;" />
+    <input type="text" class="sf-value" placeholder="Value" value="${(value||'').replace(/"/g,'&quot;')}" style="background:#fff;color:#1e293b;" />
+    <button onclick="this.closest('.special-field-row').remove()">✕</button>`;
+  c.appendChild(row);
+}
+
+function buildSelect(id, options, selectedValue) {
+  const listId = 'ddl-' + id;
+  const inputVal = selectedValue ? displayName(selectedValue) : '';
+  const opts = options.map(n => {
+    const dn = displayName(n);
+    return `<div class="dd-opt" onmousedown="event.preventDefault();ddPick('${id}','${listId}','${dn.replace(/'/g,"&#39;")}')">${dn}</div>`;
+  }).join('');
+  return `<div class="dd-wrap"><input type="text" id="${id}" value="${inputVal}" placeholder="Select or type..." autocomplete="off" style="background:#fff;color:#1e293b;" oninput="ddFilter('${id}','${listId}')" onfocus="ddOpen('${listId}')" onblur="setTimeout(()=>ddClose('${listId}'),150)" /><div id="${listId}" class="dd-list">${opts}</div></div>`;
+}
+
+function ddOpen(listId) {
+  const dd = document.getElementById(listId);
+  if (dd) { dd.querySelectorAll('.dd-opt').forEach(o => o.style.display = ''); dd.classList.add('open'); }
+}
+
+function ddClose(listId) {
+  const dd = document.getElementById(listId);
+  if (dd) dd.classList.remove('open');
+}
+
+function ddFilter(inputId, listId) {
+  const val = (document.getElementById(inputId).value || '').toLowerCase();
+  const dd  = document.getElementById(listId);
+  if (!dd) return;
+  dd.querySelectorAll('.dd-opt').forEach(o => {
+    o.style.display = o.textContent.toLowerCase().includes(val) ? '' : 'none';
+  });
+  dd.classList.add('open');
+}
+
+function ddPick(inputId, listId, value) {
+  const el = document.getElementById(inputId);
+  if (el) el.value = value;
+  ddClose(listId);
+}
+
+// =============================================
+// Form Submit
+// =============================================
+function submitForm() {
+  const date      = document.getElementById('f-date').value;
+  const eventType = document.getElementById('f-type').value;
+  const combined  = isCombinedType(eventType);
+  if (!date) { showToast('Please select a date'); return; }
+
+  const isEdit    = editingEntries.length > 0;
+  const useShared = combined && (editingEntries.length !== 1);
+
+  // Cancelled / Replaced: save minimal entry for each group
+  if (eventType === 'Cancelled' || eventType === 'Replaced') {
+    const sharedNote = val('shared-notes');
+    const groups = isEdit ? editingEntries.map(e => e.group) : ['JAG1','JAG2'];
+    const toSave = groups.map(grp => {
+      const ex = editingEntries.find(e => e.group === grp) || {};
+      return {
+        rowIndex: ex.rowIndex || null,
+        id:       ex.id       || null,
+        date, group: grp, eventType,
+        venue: '', organiser: '', pw: '', facilitator: '', food: '', reporting: '',
+        notes: sharedNote,
+        time:  val('f-time') || ''
+      };
+    });
+    let saved = 0;
+    toSave.forEach(entry => {
+      google.script.run
+        .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } if (++saved===toSave.length) { showToast('Saved!'); editingEntries=[]; currentView='home'; ['home','add','members'].forEach(v => document.getElementById('nav-'+v).classList.toggle('active', v==='home')); loadData(); } })
+        .withFailureHandler(e => showToast('Error: '+e.message))
+        .saveRosterEntry(entry);
+    });
+    return;
+  }
+
+  // Special: collect custom fields → serialize into notes
+  if (eventType === 'Special') {
+    const customFields = Array.from(document.querySelectorAll('.special-field-row')).map(row => {
+      const label = row.querySelector('.sf-label').value.trim();
+      const value = row.querySelector('.sf-value').value.trim();
+      return (label && value) ? label + ': ' + value : null;
+    }).filter(Boolean).join('\n');
+    const venue = val('shared-venue');
+    const groups = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
+    let saved = 0;
+    groups.forEach(grp => {
+      const existing = editingEntries.find(e => e.group === grp);
+      google.script.run
+        .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } if (++saved===groups.length) { showToast('Saved!'); editingEntries=[]; currentView='home'; ['home','add','members'].forEach(v => document.getElementById('nav-'+v).classList.toggle('active', v==='home')); loadData(); } })
+        .withFailureHandler(e => showToast('Error: '+e.message))
+        .saveRosterEntry({ rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes: customFields, iceBreaker: '', time: val('f-time') || '' });
+    });
+    return;
+  }
+
+  const sharedVenue      = useShared ? val('shared-venue')       : null;
+  const sharedFac        = useShared ? val('shared-facilitator') : null;
+  const sharedPW         = useShared ? val('shared-pw')          : null;
+  const sharedFood       = useShared ? val('shared-food')        : null;
+  const sharedRep        = useShared ? val('shared-reporting')   : null;
+  const sharedNotes      = useShared ? val('shared-notes')       : null;
+  const sharedIceBreaker = useShared ? val('shared-icebreaker')  : null;
+
+  const groups = isEdit ? editingEntries.map(e => e.group)
+               : combined ? ['JAG1','JAG2'] : activeGroups;
+
+  const toSave = groups.map(grp => {
+    const existing = editingEntries.find(e => e.group === grp);
+    return {
+      rowIndex:    existing ? existing.rowIndex : null,
+      id:          existing ? existing.id       : null,
+      date, group: grp, eventType,
+      venue:       sharedVenue  ?? val(grp + '-venue'),
+      organiser:   resolveDisplayName(val(grp + '-organiser')),
+      pw:          resolveDisplayName(sharedPW     ?? val(grp + '-pw')),
+      facilitator: resolveDisplayName(sharedFac    ?? val(grp + '-facilitator')),
+      food:        sharedFood   ?? val(grp + '-food'),
+      reporting:   resolveDisplayName(sharedRep    ?? val(grp + '-reporting')),
+      notes:       sharedNotes  ?? val(grp + '-notes'),
+      iceBreaker:  sharedIceBreaker ?? val(grp + '-icebreaker'),
+      time:        val('f-time') || ''
+    };
+  });
+
+  let saved = 0;
+  toSave.forEach(entry => {
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (!result.success) { showToast('Error: ' + result.error); return; }
+        if (++saved === toSave.length) {
+          showToast('Saved!');
+          editingEntries = [];
+          currentView = 'home';
+          ['home','add','members'].forEach(v => document.getElementById('nav-'+v).classList.toggle('active', v==='home'));
+          loadData();
+        }
+      })
+      .withFailureHandler(err => showToast('Error: ' + err.message))
+      .saveRosterEntry(entry);
+  });
+}
+
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+// =============================================
+// Edit / Delete Entry
+// =============================================
+function openEditEntries(entries) {
+  editingEntries = entries;
+  activeGroups   = entries.map(e => e.group);
+  currentView    = 'add';
+  ['home','add','members'].forEach(v =>
+    document.getElementById('nav-' + v).classList.toggle('active', v === 'add'));
+  renderAdd();
+  document.getElementById('content').scrollTop = 0;
+}
+
+function openAddForDate(dateStr) {
+  editingEntries = [];
+  activeGroups   = ['JAG1','JAG2'];
+  currentView    = 'add';
+  ['home','add','members'].forEach(v =>
+    document.getElementById('nav-' + v).classList.toggle('active', v === 'add'));
+  renderAdd(dateStr);
+  document.getElementById('content').scrollTop = 0;
+}
+
+function confirmDeleteEntries(rowIndices, date, label) {
+  openModal(`
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="font-size:2rem;margin-bottom:8px;">&#128465;</div>
+      <div style="font-weight:700;margin-bottom:6px;">Delete ${label} on ${date}?</div>
+      <div style="color:#64748b;font-size:.85rem;margin-bottom:20px;">This cannot be undone.</div>
+      <button class="btn btn-danger" onclick="doDeleteEntries(${JSON.stringify(rowIndices)})">Yes, Delete</button>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function doDeleteEntries(rowIndices) {
+  closeModal();
+  const sorted = [...rowIndices].sort((a,b) => b - a);
+  let done = 0;
+  sorted.forEach(rowIndex => {
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (!result.success) { showToast('Error: ' + result.error); return; }
+        if (++done === sorted.length) {
+          showToast('Deleted');
+          editingEntries = [];
+          currentView = 'home';
+          ['home','add','members'].forEach(v => document.getElementById('nav-'+v).classList.toggle('active', v==='home'));
+          loadData();
+        }
+      })
+      .withFailureHandler(err => showToast('Error: ' + err.message))
+      .deleteRosterEntry(rowIndex);
+  });
+}
+
+// =============================================
+// Members View
+// =============================================
+function renderMembers() {
+  const c = document.getElementById('content');
+  c.innerHTML = '';
+
+  const active   = allMembers.filter(m => m.active);
+  const inactive = allMembers.filter(m => !m.active);
+
+  if (active.length > 0) {
+    const h = document.createElement('div');
+    h.className = 'section-heading';
+    h.textContent = 'Active Members';
+    c.appendChild(h);
+    active.forEach(m => c.appendChild(buildMemberCard(m)));
+  }
+
+  if (inactive.length > 0) {
+    const h = document.createElement('div');
+    h.className = 'section-heading';
+    h.textContent = 'Inactive';
+    c.appendChild(h);
+    inactive.forEach(m => c.appendChild(buildMemberCard(m)));
+  }
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-member-btn';
+  addBtn.textContent = '+ Add New Member';
+  addBtn.style.marginTop = '12px';
+  addBtn.onclick = () => openMemberForm(null);
+  c.appendChild(addBtn);
+}
+
+function buildMemberCard(m) {
+  const card = document.createElement('div');
+  card.className = 'member-card';
+
+  const initials = m.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
+  const groupColor = m.group === 'JAG1' ? '#3b82f6' : m.group === 'JAG2' ? '#8b5cf6' : '#6366f1';
+
+  const roles = [];
+  if (m.canOrganise)   roles.push('Organise');
+  if (m.canPW)         roles.push('P&W');
+  if (m.canFacilitate) roles.push('Facilitate');
+  if (m.canReport)     roles.push('Report');
+
+  const chipsHtml = roles.map(r => `<span class="role-chip ${m.active?'':'inactive-badge'}">${r}</span>`).join('');
+
+  card.innerHTML = `
+    <div class="member-avatar" style="background:${groupColor};">${initials}</div>
+    <div class="member-info">
+      <div class="member-name">${m.name} ${m.active ? '' : '<span style="color:#94a3b8;font-size:.75rem;">(inactive)</span>'}</div>
+      <div class="member-meta">${m.group} · ${m.roleType}</div>
+      <div class="member-roles">${chipsHtml || '<span style="color:#94a3b8;font-size:.7rem;">No roles assigned</span>'}</div>
+    </div>
+    <button class="member-edit" onclick="openMemberForm(${JSON.stringify(m).split('"').join('&quot;')})">
+      <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+    </button>
+  `;
+
+  return card;
+}
+
+function openMemberForm(member) {
+  editingMember = member;
+  const m = member || {};
+  openModal(`
+    <div style="font-weight:700;font-size:1rem;margin-bottom:16px;">${member ? 'Edit Member' : 'Add Member'}</div>
+
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="m-name" value="${m.name||''}" placeholder="Full name" />
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Group</label>
+        <select id="m-group">
+          <option value="JAG1" ${m.group==='JAG1'?'selected':''}>JAG1</option>
+          <option value="JAG2" ${m.group==='JAG2'?'selected':''}>JAG2</option>
+          <option value="Both" ${m.group==='Both'?'selected':''}>Both</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Role Type</label>
+        <select id="m-roletype">
+          <option value="Adult"   ${(m.roleType||'Adult')==='Adult'  ?'selected':''}>Adult</option>
+          <option value="Student" ${m.roleType==='Student'?'selected':''}>Student</option>
+        </select>
+      </div>
+    </div>
+
+    <label style="font-size:.78rem;font-weight:600;color:#475569;margin-bottom:8px;display:block;">Can do:</label>
+    <div class="toggle-row" style="margin-bottom:14px;">
+      <button class="toggle-btn ${m.canOrganise?'on':''}" id="mt-organise"   onclick="this.classList.toggle('on')">Organise</button>
+      <button class="toggle-btn ${m.canPW?'on':''}"       id="mt-pw"         onclick="this.classList.toggle('on')">P&W</button>
+      <button class="toggle-btn ${m.canFacilitate?'on':''}" id="mt-facilitate" onclick="this.classList.toggle('on')">Facilitate</button>
+      <button class="toggle-btn ${m.canReport?'on':''}"    id="mt-report"    onclick="this.classList.toggle('on')">Report</button>
+    </div>
+
+    <div class="field-row" style="margin-bottom:14px;">
+      <div>
+        <label>Status</label>
+        <select id="m-active">
+          <option value="true"  ${m.active!==false?'selected':''}>Active</option>
+          <option value="false" ${m.active===false?'selected':''}>Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="submitMember()">Save Member</button>
+    ${member ? `<button class="btn btn-danger" style="margin-top:8px;" onclick="confirmDeleteMember(${member.rowIndex}, '${member.name}')">Remove Member</button>` : ''}
+    <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+  `);
+}
+
+function submitMember() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { showToast('Name is required'); return; }
+
+  const member = {
+    rowIndex:     editingMember ? editingMember.rowIndex : null,
+    name,
+    group:        document.getElementById('m-group').value,
+    roleType:     document.getElementById('m-roletype').value,
+    canOrganise:  document.getElementById('mt-organise').classList.contains('on'),
+    canPW:        document.getElementById('mt-pw').classList.contains('on'),
+    canFacilitate:document.getElementById('mt-facilitate').classList.contains('on'),
+    canReport:    document.getElementById('mt-report').classList.contains('on'),
+    active:       document.getElementById('m-active').value === 'true'
+  };
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (!result.success) { showToast('Error: ' + result.error); return; }
+      showToast('Member saved');
+      closeModal();
+      loadData();
+      currentView = 'members';
+    })
+    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .saveMember(member);
+}
+
+function confirmDeleteMember(rowIndex, name) {
+  openModal(`
+    <div style="text-align:center;padding:8px 0 16px;">
+      <div style="font-size:2rem;margin-bottom:8px;">👤</div>
+      <div style="font-weight:700;margin-bottom:6px;">Remove ${name}?</div>
+      <div style="color:#64748b;font-size:.85rem;margin-bottom:20px;">They won't appear in future dropdowns.</div>
+      <button class="btn btn-danger" onclick="deleteMemberRow(${rowIndex})">Yes, Remove</button>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+function deleteMemberRow(rowIndex) {
+  closeModal();
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (!result.success) { showToast('Error: ' + result.error); return; }
+      showToast('Member removed');
+      loadData();
+      currentView = 'members';
+    })
+    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .deleteMember(rowIndex);
+}
+
+// =============================================
+// Role Eligibility Logic
+// =============================================
+function getActive() {
+  return allMembers.filter(m => m.active);
+}
+
+function groupMatch(member, group) {
+  return member.group === group || member.group === 'Both';
+}
+
+function getEligible(role, group, isCombined) {
+  const active = getActive();
+  switch (role) {
+    case 'organiser':
+      // Always group-specific; group won't be null here
+      return active.filter(m => m.canOrganise && groupMatch(m, group)).map(m => m.name);
+    case 'pw':
+      if (isCombined && group === null) {
+        // Shared P&W for combined: any member who can do P&W
+        return active.filter(m => m.canPW).map(m => m.name);
+      }
+      return active.filter(m => m.canPW && groupMatch(m, group)).map(m => m.name);
+    case 'reporting':
+      if (isCombined && group === null) {
+        // Shared reporting for combined: any who canReport (Steph excluded via config)
+        return active.filter(m => m.canReport).map(m => m.name);
+      }
+      return active.filter(m => m.canReport && groupMatch(m, group)).map(m => m.name);
+    default:
+      return [];
+  }
+}
+
+function getEligibleFacilitators(eventType, group) {
+  const active = getActive();
+  if (!group) {
+    // Combined: any member that can facilitate
+    return active.filter(m => m.canFacilitate).map(m => m.name);
+  }
+  // Separated: group match
+  return active.filter(m => m.canFacilitate && groupMatch(m, group)).map(m => m.name);
+}
+
+// =============================================
+// Date & Event Type Helpers
+// =============================================
+function isCombinedType(eventType) {
+  return eventType === 'Youth Hour' || eventType === 'Home-Based LG' || eventType === 'JAG1&2 Combined' || eventType === 'Combined' || eventType === 'Special';
+}
+
+function eventTypeBadge(eventType) {
+  switch (eventType) {
+    case 'Youth Hour':      return 'badge-youth';
+    case 'Separated LG':   return 'badge-sep';
+    case 'Home-Based LG':
+    case 'Combined':
+    case 'JAG1&2 Combined': return 'badge-home';
+    case 'Special':        return 'badge-special';
+    case 'Cancelled':      return 'badge-cancelled';
+    case 'Replaced':       return 'badge-replaced';
+    default:               return 'badge-tbd';
+  }
+}
+
+function suggestEventType(date) {
+  const d = new Date(date);
+  const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
+  let dayOfWeek = firstDay.getDay();
+  let daysToFirstFriday = (5 - dayOfWeek + 7) % 7;
+  const firstFriday = new Date(firstDay);
+  firstFriday.setDate(1 + daysToFirstFriday);
+  const weekNum = Math.round((d - firstFriday) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  switch (weekNum) {
+    case 1:  return 'Youth Hour';
+    case 2:  return 'Separated LG';
+    case 3:  return 'Combined';
+    case 4:  return 'Separated LG';
+    default: return 'Special';
+  }
+}
+
+function getNextFriday() {
+  const d = new Date();
+  const day = d.getDay();
+  const daysToFriday = (5 - day + 7) % 7 || 7;
+  d.setDate(d.getDate() + daysToFriday);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// Returns every Friday from Jan 1 of the current year through Dec 31 of next year.
+// Extend endYear if you need a longer planning horizon.
+function getFridaysRange() {
+  const startYear = new Date().getFullYear();
+  const endYear   = startYear + 1;
+  const fridays   = [];
+  let d = new Date(startYear, 0, 1);
+  // Advance to first Friday
+  while (d.getDay() !== 5) d.setDate(d.getDate() + 1);
+  while (d.getFullYear() <= endYear) {
+    fridays.push(new Date(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return fridays;
+}
+
+// All Fridays in range + any non-Friday entry dates (for ad-hoc gatherings)
+function getScheduleDates() {
+  const fridaySet  = new Set(getFridaysRange().map(toISODate));
+  const allDates   = [...getFridaysRange()];
+  allEntries.forEach(e => {
+    if (!fridaySet.has(e.date)) {
+      const p = e.date.split('-');
+      allDates.push(new Date(+p[0], +p[1]-1, +p[2]));
+      fridaySet.add(e.date);
+    }
+  });
+  return allDates.sort((a,b) => a - b);
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1] || '0', 10);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return hour + ':' + String(m).padStart(2, '0') + ' ' + ampm;
+}
+
+function toISODate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatDateLong(d) {
+  return d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+}
+
+function formatDateShort(d) {
+  return d.toLocaleDateString('en-AU', { day:'numeric', month:'short' });
+}
+
+// =============================================
+// Share / WhatsApp
+// =============================================
+function generateShareText(friday, entries) {
+  const dateStr  = formatDateLong(friday);
+  const eventType = entries[0] && entries[0].eventType || '';
+  const combined  = isCombinedType(eventType);
+  const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
+
+  const lines = [];
+  lines.push('📅 JAG Life Group — ' + dateStr);
+  const _shareTime = entries[0] && entries[0].time ? formatTime(entries[0].time) : '';
+  if (_shareTime) lines.push('🕐 ' + _shareTime);
+  lines.push('🏷️ ' + (eventType || 'TBC'));
+  lines.push('');
+
+  if (isCancelledOrReplaced) {
+    const note = entries[0] && entries[0].notes;
+    if (note) lines.push('📝 ' + note);
+    return lines.join('\n');
+  }
+
+  if (combined) {
+    const jag1 = entries.find(e => e.group === 'JAG1') || {};
+    const jag2 = entries.find(e => e.group === 'JAG2') || {};
+    lines.push('📍 Venue: ' + (jag1.venue || jag2.venue || 'TBC'));
+    if (jag1.organiser || jag2.organiser) {
+      const parts = [];
+      if (jag1.organiser) parts.push('JAG1 ' + displayName(jag1.organiser));
+      if (jag2.organiser) parts.push('JAG2 ' + displayName(jag2.organiser));
+      lines.push('🎙️ Organiser: ' + parts.join(' · '));
+    }
+    const pw  = jag1.pw  || jag2.pw;
+    lines.push('🎵 Praise & Worship: ' + (pw  ? displayName(pw)  : 'TBC'));
+    const fac = jag1.facilitator || jag2.facilitator;
+    lines.push('🗣️ Facilitator: '      + (fac ? displayName(fac) : 'TBC'));
+    const food = jag1.food || jag2.food;
+    lines.push('🍽️ Food: '             + (food || 'TBC'));
+    const rep = jag1.reporting || jag2.reporting;
+    lines.push('📋 Reporting: '        + (rep ? displayName(rep) : 'TBC'));
+    const iceBreaker = jag1.iceBreaker || jag2.iceBreaker;
+    if (iceBreaker) lines.push('🧊 Ice Breaker: ' + iceBreaker);
+    const notes = [jag1.notes, jag2.notes].filter(Boolean).join(' · ');
+    if (notes) lines.push('📝 ' + notes);
+  } else {
+    [...entries].sort((a, b) => a.group === 'JAG1' ? -1 : 1).forEach(entry => {
+      lines.push('— ' + entry.group + ' —');
+      lines.push('📍 Venue: ' + (entry.venue || 'TBC'));
+      if (entry.organiser)   lines.push('🎙️ Organiser: ' + displayName(entry.organiser));
+      lines.push('🎵 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
+      lines.push('🗣️ Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
+      if (entry.food || entry.group === 'JAG1') lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
+      lines.push('📋 Reporting: ' + (entry.reporting ? displayName(entry.reporting) : 'TBC'));
+      if (entry.notes)       lines.push('📝 ' + entry.notes);
+      lines.push('');
+    });
+  }
+
+  return lines.join('\n').trimEnd();
+}
+
+function shareEvent(friday, entries) {
+  const text = generateShareText(friday, entries);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('Copied to clipboard!');
+    }).catch(function() {
+      _fallbackCopy(text);
+    });
+  } else {
+    _fallbackCopy(text);
+  }
+}
+
+function _fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('Copied to clipboard!'); }
+  catch(e) { showToast('Could not copy — try long-pressing the text'); }
+  document.body.removeChild(ta);
+}
+
+// =============================================
+// Modal
+// =============================================
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// =============================================
+// Toast
+// =============================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
