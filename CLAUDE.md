@@ -29,7 +29,7 @@ After completing any change (version bump included), always:
    ```
    vX.Y.Z — <short description of what changed>
    ```
-   Example: `v1.11.0 — add setActiveNav(), finishSave(), remove dead code, update CLAUDE.md`
+   Example: `v1.13.0 — reorder sheet columns, fix unscheduled date format, update CLAUDE.md`
 3. **Push** to the remote if one is configured:
    ```bash
    git remote -v   # check if remote exists
@@ -95,23 +95,24 @@ Only required when adding a new column or renaming an existing header. Steps:
 |---------|--------|--------------------|
 | v1.5.0 | Added Ice Breaker (col K), shifted Last Updated to col L | `migrateSchemaToV15()` |
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
+| v1.13.0 | Reordered columns for human readability: Time → col D, Ice Breaker → col I | `migrateSchemaToV113()` |
 
-### Current schema (v1.12.0, 14 columns — Roster tab)
+### Current schema (v1.13.0, 14 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
 | A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
 | B | Group | group | Dropdown: JAG1, JAG2 |
 | C | Event Type | eventType | Dropdown: Youth Hour, Separated LG, Combined, Special, Cancelled, Replaced |
-| D | Venue | venue | |
-| E | Organiser | organiser | |
-| F | P&W | pw | |
-| G | Facilitator | facilitator | |
-| H | Food | food | |
-| I | Reporting | reporting | |
-| J | Notes | notes | Special events: `Label: Value\n...` per line |
-| K | Ice Breaker | iceBreaker | Optional; shown in form and card **only for Youth Hour**; blank for all other event types |
-| L | Last Updated | updatedAt | Auto-stamped; do not edit |
-| M | Time | time | 24h text e.g. `18:30`; blank = no fixed time |
+| D | Time | time | 24h text e.g. `18:30`; blank = no fixed time |
+| E | Venue | venue | |
+| F | Organiser | organiser | |
+| G | P&W | pw | |
+| H | Facilitator | facilitator | |
+| I | Ice Breaker | iceBreaker | Optional; shown in form and card **only for Youth Hour**; blank for all other event types |
+| J | Food | food | |
+| K | Reporting | reporting | |
+| L | Notes | notes | Special events: `Label: Value\n...` per line |
+| M | Last Updated | updatedAt | Auto-stamped; do not edit |
 | N | Event ID | id | UUID auto-generated; do not edit |
 
 ### Members tab schema (fixed, 8 columns)

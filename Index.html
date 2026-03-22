@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.12.0 (2026-03-22) -->
+  <!-- Version: 1.13.0 (2026-03-22) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -529,7 +529,7 @@ function buildUnscheduledCard(friday, isUpcoming) {
     ${isUpcoming ? '<div class="upcoming-banner">Next LG</div>' : ''}
     <div class="unscheduled-inner">
       <div>
-        <div class="unscheduled-date">${formatDateShort(friday)}</div>
+        <div class="unscheduled-date">${formatDateLong(friday)}</div>
         <div class="unscheduled-hint">Suggested: ${suggested}</div>
       </div>
       <button class="add-quick-btn" onclick="openAddForDate('${toISODate(friday)}')">+ Schedule</button>

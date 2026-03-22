@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.12.0 (2026-03-22)
+// Version: 1.13.0 (2026-03-22)
 // ============================================================
 
-const VERSION      = '1.12.0';
+const VERSION      = '1.13.0';
 const VERSION_DATE = '2026-03-22';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -144,39 +144,38 @@ function saveRosterEntry(entry) {
       parseInt(dateParts[2])
     );
 
-    // Preserve existing ID on edit, generate a new one for new entries
     const entryId = entry.id || Utilities.getUuid();
 
-    const rowData = [
-      dateObj,
-      entry.group,
-      entry.eventType,
-      entry.venue       || '',
-      entry.organiser   || '',
-      entry.pw          || '',
-      entry.facilitator || '',
-      entry.food        || '',
-      entry.reporting   || '',
-      entry.notes       || '',
-      entry.iceBreaker  || '',
-      new Date(),          // updatedAt
-      entry.time        || '',
-      entryId
-    ];
-
-    const numCols = rowData.length;
+    // Read sheet once: serves both header mapping and ID lookup.
+    // Building rowData by column position makes writes column-order agnostic —
+    // reordering columns in the sheet never breaks saves.
+    const data    = sheet.getDataRange().getValues();
+    const col     = _rosterColMap(data[0]);
+    const numCols = data[0].length;
+    const rowData = new Array(numCols).fill('');
+    const s = function(key, val) { if (col[key] !== undefined) rowData[col[key]] = val; };
+    s('date',        dateObj);
+    s('group',       entry.group);
+    s('eventType',   entry.eventType);
+    s('venue',       entry.venue       || '');
+    s('organiser',   entry.organiser   || '');
+    s('pw',          entry.pw          || '');
+    s('facilitator', entry.facilitator || '');
+    s('food',        entry.food        || '');
+    s('reporting',   entry.reporting   || '');
+    s('notes',       entry.notes       || '');
+    s('iceBreaker',  entry.iceBreaker  || '');
+    s('updatedAt',   new Date());
+    s('time',        entry.time        || '');
+    s('id',          entryId);
 
     // Prefer ID-based lookup for reliable editing
-    if (entry.id) {
-      const data = sheet.getDataRange().getValues();
-      const col  = _rosterColMap(data[0]);
-      if (col.id !== undefined) {
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][col.id]) === String(entry.id)) {
-            sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
-            sortRosterSheet(sheet);
-            return { success: true };
-          }
+    if (entry.id && col.id !== undefined) {
+      for (let i = 1; i < data.length; i++) {
+        if (String(data[i][col.id]) === String(entry.id)) {
+          sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
+          sortRosterSheet(sheet);
+          return { success: true };
         }
       }
     }
@@ -270,6 +269,47 @@ function sortRosterSheet(sheet) {
 //   2. Run it ONCE from the Apps Script editor (never auto-run on load).
 //   3. The migration inserts the new column/header without touching other data.
 //   4. Only after migration succeeds should the new code be deployed.
+
+// ---- Schema Migration: v1.12 → v1.13 ----
+// Run ONCE to reorder Roster columns for human readability.
+// Moves Time to col D (after Event Type) and Ice Breaker to col I (after Facilitator).
+// New order: Date · Group · Event Type · Time · Venue · Organiser · P&W · Facilitator ·
+//            Ice Breaker · Food · Reporting · Notes · Last Updated · Event ID
+// After running, call formatSheets() to refresh column widths and formatting.
+function migrateSchemaToV113() {
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+  if (!sheet) { Logger.log('Roster sheet not found.'); return; }
+
+  function getHeaderMap() {
+    return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+      .map(function(h) { return String(h).toLowerCase().trim(); });
+  }
+
+  let lower = getHeaderMap();
+
+  // Idempotency check: Time at col D (idx 3), Ice Breaker at col I (idx 8)
+  if (lower.indexOf('time') === 3 && lower.indexOf('ice breaker') === 8) {
+    Logger.log('Already on v1.13 schema — nothing to do.'); return;
+  }
+
+  // Step 1: Move Time to col D (1-based position 4)
+  const timeCol = lower.indexOf('time') + 1;
+  if (timeCol > 0 && timeCol !== 4) {
+    sheet.moveColumns(sheet.getRange(1, timeCol, 1, 1), 4);
+    Logger.log('Moved Time → col D.');
+    lower = getHeaderMap();
+  }
+
+  // Step 2: Move Ice Breaker to col I (1-based position 9)
+  const ibCol = lower.indexOf('ice breaker') + 1;
+  if (ibCol > 0 && ibCol !== 9) {
+    sheet.moveColumns(sheet.getRange(1, ibCol, 1, 1), 9);
+    Logger.log('Moved Ice Breaker → col I.');
+  }
+
+  Logger.log('migrateSchemaToV113 complete. Run formatSheets() to refresh column formatting.');
+}
 
 // ---- Sheet Formatting ----
 // Run formatSheets() from the Apps Script editor any time to:
