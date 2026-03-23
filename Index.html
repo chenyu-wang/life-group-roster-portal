@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.0 (2026-03-23) -->
+  <!-- Version: 1.15.1 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -692,7 +692,7 @@ function rebuildSections(eventType) {
   }
 
   const groups = isEdit
-    ? editingEntries.map(e => e.group)
+    ? [...new Set(editingEntries.map(e => e.group))]
     : combined ? ['JAG1','JAG2'] : activeGroups;
 
   // Combined events with both groups: flat shared form (Venue → Organisers → Food → P&W|Fac → Reporting → Notes)
