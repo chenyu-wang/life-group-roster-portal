@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.2 (2026-03-23) -->
+  <!-- Version: 1.15.3 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -725,7 +725,7 @@ function rebuildSections(eventType) {
           ${buildSelect('shared-pw', getEligible('pw', null, true), ref.pw||'')}
         </div>
         <div class="field">
-          <label>Facilitator</label>
+          <label>📖 Facilitator</label>
           ${buildSelect('shared-facilitator', getEligibleFacilitators(eventType, null), ref.facilitator||'')}
         </div>
       </div>
@@ -777,7 +777,7 @@ function rebuildSections(eventType) {
           ${buildSelect(grp+'-pw', getEligible('pw', grp, false), entry.pw||'')}
         </div>
         <div class="field">
-          <label>Facilitator</label>
+          <label>📖 Facilitator</label>
           ${buildSelect(grp+'-facilitator', getEligibleFacilitators(eventType, grp), entry.facilitator||'')}
         </div>
       </div>
