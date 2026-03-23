@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.13.3 (2026-03-23) -->
+  <!-- Version: 1.14.0 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -648,8 +648,8 @@ function rebuildSections(eventType) {
   if (!container) return;
   container.innerHTML = '';
 
-  const isEdit         = editingEntries.length > 0;
-  const combined       = isCombinedType(eventType);
+  const isEdit   = editingEntries.length > 0;
+  const combined = isCombinedType(eventType);
 
   // Cancelled / Replaced: only show a notes field
   if (eventType === 'Cancelled' || eventType === 'Replaced') {
@@ -695,34 +695,43 @@ function rebuildSections(eventType) {
     ? editingEntries.map(e => e.group)
     : combined ? ['JAG1','JAG2'] : activeGroups;
 
-  const showShared = combined && groups.length === 2;
-  if (showShared) {
-    const ref = editingEntries.find(e => e.group === 'JAG1') || editingEntries[0] || {};
-    const sharedDiv = document.createElement('div');
-    sharedDiv.innerHTML = `
+  // Combined events with both groups: flat shared form (Venue → Organisers → Food → P&W|Fac → Reporting → Notes)
+  if (combined && groups.length === 2) {
+    const ref  = editingEntries.find(e => e.group === 'JAG1') || editingEntries[0] || {};
+    const ref2 = editingEntries.find(e => e.group === 'JAG2') || {};
+    const div  = document.createElement('div');
+    div.innerHTML = `
       <div class="field">
         <label>Venue (Shared)</label>
         <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
       </div>
       <div class="field-row">
         <div class="field">
-          <label>Facilitator</label>
-          ${buildSelect('shared-facilitator', getEligibleFacilitators(eventType, null), ref.facilitator||'')}
+          <label>JAG1 Organiser (optional)</label>
+          ${buildSelect('JAG1-organiser', getEligible('organiser', 'JAG1', true), ref.organiser||'')}
         </div>
+        <div class="field">
+          <label>JAG2 Organiser (optional)</label>
+          ${buildSelect('JAG2-organiser', getEligible('organiser', 'JAG2', true), ref2.organiser||'')}
+        </div>
+      </div>
+      <div class="field">
+        <label>Food (Shared)</label>
+        <input type="text" id="shared-food" placeholder="Type food..." value="${ref.food||''}" />
+      </div>
+      <div class="field-row">
         <div class="field">
           <label>Praise &amp; Worship</label>
           ${buildSelect('shared-pw', getEligible('pw', null, true), ref.pw||'')}
         </div>
+        <div class="field">
+          <label>Facilitator</label>
+          ${buildSelect('shared-facilitator', getEligibleFacilitators(eventType, null), ref.facilitator||'')}
+        </div>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label>Food</label>
-          <input type="text" id="shared-food" placeholder="Type food..." value="${ref.food||''}" />
-        </div>
-        <div class="field">
-          <label>Reporting</label>
-          ${buildSelect('shared-reporting', getEligible('reporting', null, true), ref.reporting||'')}
-        </div>
+      <div class="field">
+        <label>Reporting</label>
+        ${buildSelect('shared-reporting', getEligible('reporting', null, true), ref.reporting||'')}
       </div>
       <div class="field">
         <label>Notes (optional)</label>
@@ -733,33 +742,33 @@ function rebuildSections(eventType) {
         <label>Ice Breaker (optional)</label>
         ${buildSelect('shared-iceBreaker', getActive().map(m => m.name), ref.iceBreaker||'')}
       </div>` : ''}
-`;
-    container.appendChild(sharedDiv);
-    container.appendChild(Object.assign(document.createElement('hr'), { className: 'divider' }));
+    `;
+    container.appendChild(div);
+    return;
   }
 
+  // Separated LG or single-group combined editing: per-group sections
+  // Field order: Venue → Organiser|Food → P&W|Facilitator → Reporting → Notes
   groups.forEach((grp, idx) => {
-    // Skip per-group sections for Special events
-    if (eventType === 'Special') return;
-
     const entry      = editingEntries.find(e => e.group === grp) || {};
     const titleClass = grp === 'JAG1' ? 'jag1' : 'jag2';
-    const showAll    = !combined || groups.length === 1;
 
     const sec = document.createElement('div');
     sec.className = `form-section ${grp.toLowerCase()}`;
     sec.innerHTML = `
-      <div class="form-section-title ${titleClass}">${grp}${combined ? ' &middot; Organiser' : ''}</div>
-
-      ${showAll ? `
+      <div class="form-section-title ${titleClass}">${grp}</div>
+      <div class="field">
+        <label>Venue</label>
+        <input type="text" id="${grp}-venue" placeholder="Type venue..." value="${entry.venue||''}" />
+      </div>
       <div class="field-row">
         <div class="field">
-          <label>Venue</label>
-          <input type="text" id="${grp}-venue" placeholder="Type venue..." value="${entry.venue||''}" />
+          <label>Organiser (optional)</label>
+          ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
         </div>
         <div class="field">
-          <label>Facilitator</label>
-          ${buildSelect(grp+'-facilitator', getEligibleFacilitators(eventType, grp), entry.facilitator||'')}
+          <label>Food</label>
+          <input type="text" id="${grp}-food" placeholder="Type food..." value="${entry.food||''}" />
         </div>
       </div>
       <div class="field-row">
@@ -768,35 +777,26 @@ function rebuildSections(eventType) {
           ${buildSelect(grp+'-pw', getEligible('pw', grp, false), entry.pw||'')}
         </div>
         <div class="field">
-          <label>Reporting</label>
-          ${buildSelect(grp+'-reporting', getEligible('reporting', grp, false), entry.reporting||'')}
+          <label>Facilitator</label>
+          ${buildSelect(grp+'-facilitator', getEligibleFacilitators(eventType, grp), entry.facilitator||'')}
         </div>
-      </div>` : ''}
-
-      ${!combined ? `
-      <div class="field-row">
-        <div class="field">
-          <label>Food</label>
-          <input type="text" id="${grp}-food" placeholder="Type food..." value="${entry.food||''}" />
-        </div>
-        <div class="field">
-          <label>Organiser (optional)</label>
-          ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
-        </div>
+      </div>
+      <div class="field">
+        <label>Reporting</label>
+        ${buildSelect(grp+'-reporting', getEligible('reporting', grp, false), entry.reporting||'')}
       </div>
       <div class="field">
         <label>Notes (optional)</label>
         <input type="text" id="${grp}-notes" placeholder="Type notes..." value="${entry.notes||''}" />
       </div>
-` : `
+      ${(combined && eventType === 'Youth Hour') ? `
       <div class="field">
-        <label>Organiser (optional)</label>
-        ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
-      </div>
-`}`;
-
+        <label>Ice Breaker (optional)</label>
+        ${buildSelect('shared-iceBreaker', getActive().map(m => m.name), entry.iceBreaker||'')}
+      </div>` : ''}
+    `;
     container.appendChild(sec);
-    if (showShared && idx === 0) {
+    if (idx < groups.length - 1) {
       container.appendChild(Object.assign(document.createElement('hr'), { className: 'divider' }));
     }
   });
