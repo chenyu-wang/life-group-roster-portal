@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.4 (2026-03-23) -->
+  <!-- Version: 1.15.5 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -418,7 +418,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   const eventType = entries[0].eventType || 'Special';
   const combined  = isCombinedType(eventType);
   const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
-  const dateSub = combined ? (eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
+  const dateSub = combined ? (eventType === 'Youth Hour' ? 'JAG1 + JAG2 + Older Sunday School Students' : eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
   const timeStr = entries[0] && entries[0].time ? formatTime(entries[0].time) : '';
   const dateSub2 = [timeStr, dateSub].filter(Boolean).join(' · ');
 
