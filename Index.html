@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.14.1 (2026-03-23) -->
+  <!-- Version: 1.14.2 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -419,7 +419,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   const combined  = isCombinedType(eventType);
   const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
   const dateSub = combined ? (eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
-  const timeStr = entries[0] && entries[0].time ? '🕰️ ' + formatTime(entries[0].time) : '';
+  const timeStr = entries[0] && entries[0].time ? formatTime(entries[0].time) : '';
   const dateSub2 = [timeStr, dateSub].filter(Boolean).join(' · ');
 
   // ---- Header ----
@@ -472,7 +472,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       <div class="venue-line">🏡 Venue: <b>${jag1.venue || 'TBC'}</b></div>
       <div class="venue-line">📖 Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
       <div class="venue-line">🎤 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
-      <div class="venue-line">🥘 Food: <b>${jag1.food || 'TBC'}</b></div>
+      <div class="venue-line">🍽️ Food: <b>${jag1.food || 'TBC'}</b></div>
       <div class="venue-line">✍️ Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
       ${jag1.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(jag1.iceBreaker)}</b></div>` : ''}
       ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
@@ -509,7 +509,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
         <div class="venue-line">🎤 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
         <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
-        <div class="venue-line">🥘 Food: <b>${entry.food || 'TBC'}</b></div>
+        <div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>
         <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
         ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}`;
       card.appendChild(gr);
@@ -579,11 +579,11 @@ function renderAdd(prefillDate) {
 
       <div class="field-row">
         <div class="field">
-          <label>🗓️ Date</label>
+          <label>Date</label>
           <input type="date" id="f-date" value="${defaultDate}" onchange="onDateChange(this.value)" ${isEdit ? 'readonly style="background:#f8fafc;"' : ''} />
         </div>
         <div class="field">
-          <label>🕰️ Time</label>
+          <label>Time</label>
           <input type="time" id="f-time" value="${defaultTime}" style="background:#fff;color:#1e293b;" />
         </div>
       </div>
@@ -716,7 +716,7 @@ function rebuildSections(eventType) {
         </div>
       </div>
       <div class="field">
-        <label>🥘 Food (Shared)</label>
+        <label>🍽️ Food (Shared)</label>
         <input type="text" id="shared-food" placeholder="Type food..." value="${ref.food||''}" />
       </div>
       <div class="field-row">
@@ -767,7 +767,7 @@ function rebuildSections(eventType) {
           ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
         </div>
         <div class="field">
-          <label>🥘 Food</label>
+          <label>🍽️ Food</label>
           <input type="text" id="${grp}-food" placeholder="Type food..." value="${entry.food||''}" />
         </div>
       </div>
@@ -1326,9 +1326,9 @@ function generateShareText(friday, entries) {
   const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
 
   const lines = [];
-  lines.push('🗓️ JAG Life Group — ' + dateStr);
+  lines.push('📅 JAG Life Group — ' + dateStr);
   const _shareTime = entries[0] && entries[0].time ? formatTime(entries[0].time) : '';
-  if (_shareTime) lines.push('🕰️ ' + _shareTime);
+  if (_shareTime) lines.push('🕐 ' + _shareTime);
   lines.push('🏷️ ' + (eventType || 'TBC'));
   lines.push('');
 
@@ -1353,7 +1353,7 @@ function generateShareText(friday, entries) {
     const fac = jag1.facilitator || jag2.facilitator;
     lines.push('📖 Facilitator: '      + (fac ? displayName(fac) : 'TBC'));
     const food = jag1.food || jag2.food;
-    lines.push('🥘 Food: '             + (food || 'TBC'));
+    lines.push('🍽️ Food: '             + (food || 'TBC'));
     const rep = jag1.reporting || jag2.reporting;
     lines.push('✍️ Reporting: '        + (rep ? displayName(rep) : 'TBC'));
     const iceBreaker = jag1.iceBreaker || jag2.iceBreaker;
@@ -1367,7 +1367,7 @@ function generateShareText(friday, entries) {
       if (entry.organiser)   lines.push('🎙️ Organiser: ' + displayName(entry.organiser));
       lines.push('🎤 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
       lines.push('📖 Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
-      lines.push('🥘 Food: ' + (entry.food || 'TBC'));
+      lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
       lines.push('✍️ Reporting: ' + (entry.reporting ? displayName(entry.reporting) : 'TBC'));
       if (entry.notes)       lines.push('📝 ' + entry.notes);
       lines.push('');
