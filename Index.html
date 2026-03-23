@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.3 (2026-03-23) -->
+  <!-- Version: 1.15.4 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -278,11 +278,11 @@ function encodeEntries(obj) {
   return JSON.stringify(obj).split('"').join('&quot;');
 }
 
-function buildCardFooter(friday, entries, ts) {
+function buildCardFooter(friday, entries, ts, editLabel) {
   const enc = encodeEntries(entries);
   const footer = document.createElement('div');
   footer.className = 'card-footer';
-  footer.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${enc})">📤 Share</button><button class="edit-btn" onclick="openEditEntries(${enc})">✏️ Edit</button>`;
+  footer.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${enc})">📤 Share</button><button class="edit-btn" onclick="openEditEntries(${enc})">✏️ ${editLabel || 'Edit'}</button>`;
   return footer;
 }
 
@@ -500,10 +500,12 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
     [...entries].sort((a,b) => a.group === 'JAG1' ? -1 : 1).forEach(entry => {
       const gr  = document.createElement('div');
       gr.className = 'group-row';
-      const tag = entry.group === 'JAG1' ? 'tag-jag1' : 'tag-jag2';
+      const tag    = entry.group === 'JAG1' ? 'tag-jag1' : 'tag-jag2';
+      const encOne = encodeEntries([entry]);
       gr.innerHTML = `
-        <div class="sep-group-header">
+        <div class="sep-group-header" style="display:flex;align-items:center;justify-content:space-between;">
           <span class="group-tag ${tag}">${entry.group}</span>
+          <button class="edit-btn" onclick="openEditEntries(${encOne})">✏️ Edit ${entry.group}</button>
         </div>
         <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
@@ -515,7 +517,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       card.appendChild(gr);
     });
 
-    card.appendChild(buildCardFooter(friday, entries, allTs));
+    card.appendChild(buildCardFooter(friday, entries, allTs, 'Edit All'));
   }
 
   return card;
