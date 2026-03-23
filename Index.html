@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.13.2 (2026-03-22) -->
+  <!-- Version: 1.13.3 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -509,7 +509,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
         <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
         <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
-        ${(entry.food || entry.group === 'JAG1') ? `<div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>` : ''}
+        <div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>
         <div class="venue-line">📋 Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
         ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}`;
       card.appendChild(gr);
@@ -1367,7 +1367,7 @@ function generateShareText(friday, entries) {
       if (entry.organiser)   lines.push('🎙️ Organiser: ' + displayName(entry.organiser));
       lines.push('🎵 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
       lines.push('📖 Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
-      if (entry.food || entry.group === 'JAG1') lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
+      lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
       lines.push('📋 Reporting: ' + (entry.reporting ? displayName(entry.reporting) : 'TBC'));
       if (entry.notes)       lines.push('📝 ' + entry.notes);
       lines.push('');
