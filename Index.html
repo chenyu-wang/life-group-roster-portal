@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.1 (2026-03-23) -->
+  <!-- Version: 1.15.2 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -471,7 +471,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         }).join('')}` : `
       <div class="venue-line">🏡 Venue: <b>${jag1.venue || 'TBC'}</b></div>
       <div class="venue-line">📖 Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
-      <div class="venue-line">🎤 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
+      <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
       <div class="venue-line">🍽️ Food: <b>${jag1.food || 'TBC'}</b></div>
       <div class="venue-line">✍️ Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
       ${jag1.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(jag1.iceBreaker)}</b></div>` : ''}
@@ -507,7 +507,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         </div>
         <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
-        <div class="venue-line">🎤 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
+        <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
         <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
         <div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>
         <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
@@ -721,7 +721,7 @@ function rebuildSections(eventType) {
       </div>
       <div class="field-row">
         <div class="field">
-          <label>🎤 Praise &amp; Worship</label>
+          <label>🎵 Praise &amp; Worship</label>
           ${buildSelect('shared-pw', getEligible('pw', null, true), ref.pw||'')}
         </div>
         <div class="field">
@@ -773,7 +773,7 @@ function rebuildSections(eventType) {
       </div>
       <div class="field-row">
         <div class="field">
-          <label>🎤 Praise &amp; Worship</label>
+          <label>🎵 Praise &amp; Worship</label>
           ${buildSelect(grp+'-pw', getEligible('pw', grp, false), entry.pw||'')}
         </div>
         <div class="field">
@@ -1350,7 +1350,7 @@ function generateShareText(friday, entries) {
       lines.push('🎙️ Organiser: ' + parts.join(' · '));
     }
     const pw  = jag1.pw  || jag2.pw;
-    lines.push('🎤 Praise & Worship: ' + (pw  ? displayName(pw)  : 'TBC'));
+    lines.push('🎵 Praise & Worship: ' + (pw  ? displayName(pw)  : 'TBC'));
     const fac = jag1.facilitator || jag2.facilitator;
     lines.push('📖 Facilitator: '      + (fac ? displayName(fac) : 'TBC'));
     const food = jag1.food || jag2.food;
@@ -1366,7 +1366,7 @@ function generateShareText(friday, entries) {
       lines.push('— ' + entry.group + ' —');
       lines.push('🏡 Venue: ' + (entry.venue || 'TBC'));
       if (entry.organiser)   lines.push('🎙️ Organiser: ' + displayName(entry.organiser));
-      lines.push('🎤 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
+      lines.push('🎵 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
       lines.push('📖 Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
       lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
       lines.push('✍️ Reporting: ' + (entry.reporting ? displayName(entry.reporting) : 'TBC'));
