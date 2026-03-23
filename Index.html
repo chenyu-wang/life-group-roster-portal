@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.5 (2026-03-23) -->
+  <!-- Version: 1.15.6 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -278,11 +278,11 @@ function encodeEntries(obj) {
   return JSON.stringify(obj).split('"').join('&quot;');
 }
 
-function buildCardFooter(friday, entries, ts, editLabel) {
+function buildCardFooter(friday, entries, ts, editLabel, shareLabel) {
   const enc = encodeEntries(entries);
   const footer = document.createElement('div');
   footer.className = 'card-footer';
-  footer.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${enc})">📤 Share</button><button class="edit-btn" onclick="openEditEntries(${enc})">✏️ ${editLabel || 'Edit'}</button>`;
+  footer.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareEvent(new Date('${toISODate(friday)}'), ${enc})">📤 ${shareLabel || 'Share'}</button><button class="edit-btn" onclick="openEditEntries(${enc})">✏️ ${editLabel || 'Edit'}</button>`;
   return footer;
 }
 
@@ -472,7 +472,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       <div class="venue-line">🏡 Venue: <b>${jag1.venue || 'TBC'}</b></div>
       <div class="venue-line">📖 Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
       <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
-      <div class="venue-line">🍽️ Food: <b>${jag1.food || 'TBC'}</b></div>
+      <div class="venue-line">🥘 Food: <b>${jag1.food || 'TBC'}</b></div>
       <div class="venue-line">✍️ Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
       ${jag1.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(jag1.iceBreaker)}</b></div>` : ''}
       ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
@@ -503,21 +503,24 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       const tag    = entry.group === 'JAG1' ? 'tag-jag1' : 'tag-jag2';
       const encOne = encodeEntries([entry]);
       gr.innerHTML = `
-        <div class="sep-group-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="sep-group-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;">
           <span class="group-tag ${tag}">${entry.group}</span>
-          <button class="edit-btn" onclick="openEditEntries(${encOne})">✏️ Edit ${entry.group}</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="share-btn" onclick="shareGroupWithNames(new Date('${toISODate(friday)}'), ${encOne})">📤 Share ${entry.group} + Name List</button>
+            <button class="edit-btn" onclick="openEditEntries(${encOne})">✏️ Edit ${entry.group}</button>
+          </div>
         </div>
         <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
         <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
         <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
-        <div class="venue-line">🍽️ Food: <b>${entry.food || 'TBC'}</b></div>
+        <div class="venue-line">🥘 Food: <b>${entry.food || 'TBC'}</b></div>
         <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
         ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}`;
       card.appendChild(gr);
     });
 
-    card.appendChild(buildCardFooter(friday, entries, allTs, 'Edit All'));
+    card.appendChild(buildCardFooter(friday, entries, allTs, 'Edit All', 'Share All'));
   }
 
   return card;
@@ -548,7 +551,7 @@ function renderAdd(prefillDate) {
   c.innerHTML = '';
 
   const isEdit         = editingEntries.length > 0;
-  const isCombinedEdit = isEdit && editingEntries.length === 2;
+  const isCombinedEdit = isEdit && new Set(editingEntries.map(e => e.group)).size >= 2;
   const refEntry       = isEdit ? editingEntries[0] : null;
   const defaultDate    = prefillDate || (refEntry ? refEntry.date : toISODate(getNextFriday()));
   const _legacyTypeMap = { 'JAG1&2 Combined': 'Combined', 'TBD': 'Special' };
@@ -718,7 +721,7 @@ function rebuildSections(eventType) {
         </div>
       </div>
       <div class="field">
-        <label>🍽️ Food (Shared)</label>
+        <label>🥘 Food (Shared)</label>
         <input type="text" id="shared-food" placeholder="Type food..." value="${ref.food||''}" />
       </div>
       <div class="field-row">
@@ -769,7 +772,7 @@ function rebuildSections(eventType) {
           ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
         </div>
         <div class="field">
-          <label>🍽️ Food</label>
+          <label>🥘 Food</label>
           <input type="text" id="${grp}-food" placeholder="Type food..." value="${entry.food||''}" />
         </div>
       </div>
@@ -918,7 +921,7 @@ function submitForm() {
   const sharedNotes      = useShared ? val('shared-notes')       : null;
 
 
-  const groups = isEdit ? editingEntries.map(e => e.group)
+  const groups = isEdit ? [...new Set(editingEntries.map(e => e.group))]
                : combined ? ['JAG1','JAG2'] : activeGroups;
 
   const toSave = groups.map(grp => {
@@ -1356,7 +1359,7 @@ function generateShareText(friday, entries) {
     const fac = jag1.facilitator || jag2.facilitator;
     lines.push('📖 Facilitator: '      + (fac ? displayName(fac) : 'TBC'));
     const food = jag1.food || jag2.food;
-    lines.push('🍽️ Food: '             + (food || 'TBC'));
+    lines.push('🥘 Food: '             + (food || 'TBC'));
     const rep = jag1.reporting || jag2.reporting;
     lines.push('✍️ Reporting: '        + (rep ? displayName(rep) : 'TBC'));
     const iceBreaker = jag1.iceBreaker || jag2.iceBreaker;
@@ -1370,7 +1373,7 @@ function generateShareText(friday, entries) {
       if (entry.organiser)   lines.push('🎙️ Organiser: ' + displayName(entry.organiser));
       lines.push('🎵 Praise & Worship: ' + (entry.pw ? displayName(entry.pw) : 'TBC'));
       lines.push('📖 Facilitator: ' + (entry.facilitator ? displayName(entry.facilitator) : 'TBC'));
-      lines.push('🍽️ Food: ' + (entry.food || 'TBC'));
+      lines.push('🥘 Food: ' + (entry.food || 'TBC'));
       lines.push('✍️ Reporting: ' + (entry.reporting ? displayName(entry.reporting) : 'TBC'));
       if (entry.notes)       lines.push('📝 ' + entry.notes);
       lines.push('');
@@ -1388,6 +1391,20 @@ function shareEvent(friday, entries) {
     }).catch(function() {
       _fallbackCopy(text);
     });
+  } else {
+    _fallbackCopy(text);
+  }
+}
+
+function shareGroupWithNames(friday, entry) {
+  const grp     = entry.group;
+  let text      = generateShareText(friday, [entry]);
+  const members = allMembers.filter(m => m.active && groupMatch(m, grp));
+  if (members.length) {
+    text += '\n\n👥 ' + grp + ' Name List:\n' + members.map(m => '• ' + m.name).join('\n');
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!')).catch(() => _fallbackCopy(text));
   } else {
     _fallbackCopy(text);
   }
