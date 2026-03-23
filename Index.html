@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.14.2 (2026-03-23) -->
+  <!-- Version: 1.15.0 (2026-03-23) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -1090,6 +1090,7 @@ function openMemberForm(member) {
         <select id="m-roletype">
           <option value="Adult"   ${(m.roleType||'Adult')==='Adult'  ?'selected':''}>Adult</option>
           <option value="Student" ${m.roleType==='Student'?'selected':''}>Student</option>
+          <option value="Harvest" ${m.roleType==='Harvest'?'selected':''}>Harvest</option>
         </select>
       </div>
     </div>
@@ -1175,7 +1176,7 @@ function deleteMemberRow(rowIndex) {
 // Role Eligibility Logic
 // =============================================
 function getActive() {
-  return allMembers.filter(m => m.active);
+  return allMembers.filter(m => m.active && m.roleType !== 'Harvest');
 }
 
 function groupMatch(member, group) {

@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.14.0 (2026-03-23)
+// Version: 1.15.0 (2026-03-23)
 // ============================================================
 
-const VERSION      = '1.14.0';
+const VERSION      = '1.15.0';
 const VERSION_DATE = '2026-03-23';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -429,7 +429,7 @@ function _formatMembersSheet(ss) {
   const roleIdx = lower.indexOf('role type');
   if (roleIdx >= 0) {
     const v = SpreadsheetApp.newDataValidation()
-      .requireValueInList(['Adult', 'Student'], true).setAllowInvalid(false).build();
+      .requireValueInList(['Adult', 'Student', 'Harvest'], true).setAllowInvalid(false).build();
     sheet.getRange(2, roleIdx + 1, dataRows, 1).setDataValidation(v);
   }
 
