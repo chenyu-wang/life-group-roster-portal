@@ -96,6 +96,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.5.0 | Added Ice Breaker (col K), shifted Last Updated to col L | `migrateSchemaToV15()` |
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
 | v1.13.0 | Reordered columns for human readability: Time → col D, Ice Breaker → col I | `migrateSchemaToV113()` |
+| v1.16.0 | Added Can Drive (col I) to Members tab | `migrateSchemaToV116()` |
 
 ### Current schema (v1.13.0, 14 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |
@@ -115,7 +116,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | M | Last Updated | updatedAt | Auto-stamped; do not edit |
 | N | Event ID | id | UUID auto-generated; do not edit |
 
-### Members tab schema (fixed, 8 columns)
+### Members tab schema (fixed, 9 columns)
 | Col | Sheet Header | Notes |
 |-----|-------------|-------|
 | A | Name | |
@@ -125,9 +126,10 @@ Only required when adding a new column or renaming an existing header. Steps:
 | E | Can Facilitate | Checkbox |
 | F | Can Report | Checkbox |
 | G | Active | Checkbox |
-| H | Role Type | Dropdown: Adult, Student |
+| H | Role Type | Dropdown: Adult, Student, Harvest |
+| I | Can Drive | Checkbox; used to label members as "Drive" in group share messages |
 
-- Members tab uses positional reads (row[0]–row[7]) — column order must not change
+- Members tab uses positional reads (row[0]–row[8]) — column order must not change
 - To add a Members column: add `migrateSchemaToVXY()` (see naming rule above) and update `getMembers()` + `saveMember()`
 
 ---

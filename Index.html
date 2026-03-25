@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.15.6 (2026-03-23) -->
+  <!-- Version: 1.16.0 (2026-03-25) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -1052,6 +1052,7 @@ function buildMemberCard(m) {
   if (m.canPW)         roles.push('P&W');
   if (m.canFacilitate) roles.push('Facilitate');
   if (m.canReport)     roles.push('Report');
+  if (m.canDrive)      roles.push('Drive');
 
   const chipsHtml = roles.map(r => `<span class="role-chip ${m.active?'':'inactive-badge'}">${r}</span>`).join('');
 
@@ -1106,6 +1107,7 @@ function openMemberForm(member) {
       <button class="toggle-btn ${m.canPW?'on':''}"       id="mt-pw"         onclick="this.classList.toggle('on')">P&W</button>
       <button class="toggle-btn ${m.canFacilitate?'on':''}" id="mt-facilitate" onclick="this.classList.toggle('on')">Facilitate</button>
       <button class="toggle-btn ${m.canReport?'on':''}"    id="mt-report"    onclick="this.classList.toggle('on')">Report</button>
+      <button class="toggle-btn ${m.canDrive?'on':''}"     id="mt-drive"     onclick="this.classList.toggle('on')">Drive</button>
     </div>
 
     <div class="field-row" style="margin-bottom:14px;">
@@ -1137,6 +1139,7 @@ function submitMember() {
     canPW:        document.getElementById('mt-pw').classList.contains('on'),
     canFacilitate:document.getElementById('mt-facilitate').classList.contains('on'),
     canReport:    document.getElementById('mt-report').classList.contains('on'),
+    canDrive:     document.getElementById('mt-drive').classList.contains('on'),
     active:       document.getElementById('m-active').value === 'true'
   };
 
@@ -1307,6 +1310,29 @@ function formatTime(timeStr) {
   return hour + ':' + String(m).padStart(2, '0') + ' ' + ampm;
 }
 
+// "18:30" → "6.30pm" (for share messages)
+function formatTimeShare(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1] || '0', 10);
+  const ampm = h >= 12 ? 'pm' : 'am';
+  const hour = h % 12 || 12;
+  return hour + '.' + String(m).padStart(2, '0') + ampm;
+}
+
+// Returns the full name of the member who is hosting (venue contains "FirstName's").
+// Returns null if no match — avoids false positives for parents' homes.
+function detectHost(venue, members) {
+  if (!venue) return null;
+  const vLower = venue.toLowerCase();
+  for (const m of members) {
+    const first = m.name.split(' ')[0].toLowerCase();
+    if (first && vLower.includes(first + "'s")) return m.name;
+  }
+  return null;
+}
+
 function toISODate(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -1397,12 +1423,35 @@ function shareEvent(friday, entries) {
 }
 
 function shareGroupWithNames(friday, entry) {
-  const grp     = entry.group;
-  let text      = generateShareText(friday, [entry]);
+  const grp      = entry.group;
+  const grpLabel = grp === 'JAG1' ? 'JAG 1' : grp === 'JAG2' ? 'JAG 2' : grp;
+
+  const lines = [];
+  lines.push(grpLabel);
+  lines.push('🗓️: ' + friday.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+  if (entry.time)        lines.push('🕰️: ' + formatTimeShare(entry.time));
+  if (entry.venue)       lines.push('🏡: ' + entry.venue);
+  if (entry.organiser)   lines.push('📄: ' + displayName(entry.organiser));
+  if (entry.pw)          lines.push('🎤: ' + displayName(entry.pw));
+  if (entry.facilitator) lines.push('📖: ' + displayName(entry.facilitator));
+  if (entry.food)        lines.push('🥘: ' + entry.food);
+  if (entry.reporting)   lines.push('✍️: ' + displayName(entry.reporting));
+
   const members = allMembers.filter(m => m.active && groupMatch(m, grp));
   if (members.length) {
-    text += '\n\n👥 ' + grp + ' Name List:\n' + members.map(m => '• ' + m.name).join('\n');
+    const order = { 'Adult': 0, 'Student': 1, 'Harvest': 2 };
+    members.sort((a, b) => ((order[a.roleType] ?? 1) - (order[b.roleType] ?? 1)) || a.name.localeCompare(b.name));
+    const hostName = detectHost(entry.venue, members);
+
+    lines.push('');
+    lines.push('Attendees:');
+    members.forEach((m, i) => {
+      const label = m.name === hostName ? 'Host' : m.canDrive ? 'Drive' : '';
+      lines.push((i + 1) + '. ' + displayName(m.name) + ' - ' + label);
+    });
   }
+
+  const text = lines.join('\n');
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!')).catch(() => _fallbackCopy(text));
   } else {

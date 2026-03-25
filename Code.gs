@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.15.0 (2026-03-23)
+// Version: 1.16.0 (2026-03-25)
 // ============================================================
 
-const VERSION      = '1.15.0';
-const VERSION_DATE = '2026-03-23';
+const VERSION      = '1.16.0';
+const VERSION_DATE = '2026-03-25';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
@@ -122,7 +122,8 @@ function getMembers() {
       canFacilitate: row[4] === true,
       canReport:     row[5] === true,
       active:        row[6] === true,
-      roleType:      String(row[7] || 'Adult')
+      roleType:      String(row[7] || 'Adult'),
+      canDrive:      row[8] === true
     });
   }
 
@@ -221,11 +222,12 @@ function saveMember(member) {
       member.canFacilitate === true,
       member.canReport     === true,
       member.active        !== false,
-      member.roleType      || 'Adult'
+      member.roleType      || 'Adult',
+      member.canDrive      === true
     ];
 
     if (member.rowIndex) {
-      sheet.getRange(member.rowIndex, 1, 1, 8).setValues([rowData]);
+      sheet.getRange(member.rowIndex, 1, 1, 9).setValues([rowData]);
     } else {
       sheet.appendRow(rowData);
     }
@@ -309,6 +311,27 @@ function migrateSchemaToV113() {
   }
 
   Logger.log('migrateSchemaToV113 complete. Run formatSheets() to refresh column formatting.');
+}
+
+// ---- Schema Migration: v1.15 → v1.16 ----
+// Run ONCE to add Can Drive column (col I) to the Members tab.
+// After running, call formatSheets() to apply checkbox formatting.
+function migrateSchemaToV116() {
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
+  if (!sheet) { Logger.log('Members sheet not found.'); return; }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
+
+  if (lower.indexOf('can drive') >= 0) {
+    Logger.log('Can Drive column already exists — nothing to do.');
+    return;
+  }
+
+  const newCol = sheet.getLastColumn() + 1;
+  sheet.getRange(1, newCol).setValue('Can Drive');
+  Logger.log('Added Can Drive column at position ' + newCol + '. Run formatSheets() to apply checkbox formatting.');
 }
 
 // ---- Sheet Formatting ----
@@ -410,7 +433,7 @@ function _formatMembersSheet(ss) {
   const dataRows = maxRows - 1;
 
   // --- Column widths (positional, matches Members schema order) ---
-  [160, 70, 105, 80, 110, 90, 70, 90].forEach(function(w, i) {
+  [160, 70, 105, 80, 110, 90, 70, 90, 80].forEach(function(w, i) {
     if (i < headers.length) sheet.setColumnWidth(i + 1, w);
   });
 
@@ -434,7 +457,7 @@ function _formatMembersSheet(ss) {
   }
 
   // --- Boolean columns: checkbox ---
-  ['can organise', 'can p&w', 'can facilitate', 'can report', 'active'].forEach(function(name) {
+  ['can organise', 'can p&w', 'can facilitate', 'can report', 'active', 'can drive'].forEach(function(name) {
     const idx = lower.indexOf(name);
     if (idx >= 0) {
       sheet.getRange(2, idx + 1, dataRows, 1)
