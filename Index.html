@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.1 (2026-03-25) -->
+  <!-- Version: 1.16.2 (2026-03-25) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -1431,14 +1431,14 @@ function shareGroupWithNames(friday, entryOrArr) {
   lines.push(grpLabel);
   const _days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  lines.push('🗓️: ' + _days[friday.getDay()] + ', ' + friday.getDate() + ' ' + _months[friday.getMonth()] + ' ' + friday.getFullYear());
-  if (entry.time)        lines.push('🕰️: ' + formatTimeShare(entry.time));
-  if (entry.venue)       lines.push('🏡: ' + entry.venue);
-  if (entry.organiser)   lines.push('📄: ' + displayName(entry.organiser));
-  if (entry.pw)          lines.push('🎤: ' + displayName(entry.pw));
-  if (entry.facilitator) lines.push('📖: ' + displayName(entry.facilitator));
-  if (entry.food)        lines.push('🥘: ' + entry.food);
-  if (entry.reporting)   lines.push('✍️: ' + displayName(entry.reporting));
+  lines.push('🗓️ Date: ' + _days[friday.getDay()] + ', ' + friday.getDate() + ' ' + _months[friday.getMonth()] + ' ' + friday.getFullYear());
+  if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
+  if (entry.venue)       lines.push('🏡 Venue: ' + entry.venue);
+  if (entry.organiser)   lines.push('📄 Organiser: ' + displayName(entry.organiser));
+  if (entry.pw)          lines.push('🎤 P&W: ' + displayName(entry.pw));
+  if (entry.facilitator) lines.push('📖 Facilitator: ' + displayName(entry.facilitator));
+  if (entry.food)        lines.push('🥘 Food: ' + entry.food);
+  if (entry.reporting)   lines.push('✍️ Reporting: ' + displayName(entry.reporting));
 
   const members = allMembers.filter(m => m.active && groupMatch(m, grp));
   if (members.length) {
