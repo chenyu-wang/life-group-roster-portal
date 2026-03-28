@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.11 (2026-03-28) -->
+  <!-- Version: 1.16.12 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -1464,10 +1464,10 @@ function shareCombinedWithNames(friday, entries) {
     const timeVenue = [entry.time ? formatTimeShare(entry.time) : '', entry.venue ? '@ ' + entry.venue : ''].filter(Boolean);
     if (timeVenue.length) lines.push('🕰️ ' + timeVenue.join(' '));
     lines.push('');
-    if (entry.iceBreaker)  lines.push('🧊 Icebreaker: ' + displayName(entry.iceBreaker));
-    if (entry.pw)          lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
-    if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
-    if (entry.food)        lines.push('🍛 Food: ' + entry.food);
+    lines.push('🧊 Icebreaker: ' + displayName(entry.iceBreaker));
+    lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
+    lines.push('📖 Word: ' + displayName(entry.facilitator));
+    lines.push('🍛 Food: ' + (entry.food || 'TBC'));
     lines.push('');
     lines.push('Attendance & Transport');
     lines.push('Hi all, please update.');
@@ -1506,9 +1506,9 @@ function shareCombinedWithNames(friday, entries) {
     if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
     if (entry.venue)       lines.push('🏡 ' + entry.venue);
     lines.push('');
-    if (entry.food)        lines.push('🍛 Food: ' + entry.food);
-    if (entry.pw)          lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
-    if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
+    lines.push('🍛 Food: ' + (entry.food || 'TBC'));
+    lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
+    lines.push('📖 Word: ' + displayName(entry.facilitator));
 
     lines.push('');
     lines.push('Attendance & Transport');
@@ -1571,9 +1571,9 @@ function shareGroupWithNames(friday, entryOrArr) {
     if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
     if (entry.venue)       lines.push('🏡 Venue: ' + entry.venue);
     lines.push('');
-    if (entry.food)        lines.push('🍛 Food: ' + entry.food);
-    if (entry.pw)          lines.push('🎵 P&W: ' + displayName(entry.pw));
-    if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
+    lines.push('🍛 Food: ' + (entry.food || 'TBC'));
+    lines.push('🎵 P&W: ' + displayName(entry.pw));
+    lines.push('📖 Word: ' + displayName(entry.facilitator));
 
     if (members.length) {
       lines.push('');
@@ -1609,10 +1609,10 @@ function shareGroupWithNames(friday, entryOrArr) {
     if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
     if (entry.venue)       lines.push('🏡 Venue: ' + entry.venue);
     if (entry.organiser)   lines.push('🗂️ Organiser: ' + displayName(entry.organiser));
-    if (entry.pw)          lines.push('🎤 P&W: ' + displayName(entry.pw));
-    if (entry.facilitator) lines.push('📖 Facilitator: ' + displayName(entry.facilitator));
-    if (entry.food)        lines.push('🥘 Food: ' + entry.food);
-    if (entry.reporting)   lines.push('✍️ Reporting: ' + displayName(entry.reporting));
+    lines.push('🎤 P&W: ' + displayName(entry.pw));
+    lines.push('📖 Facilitator: ' + displayName(entry.facilitator));
+    lines.push('🥘 Food: ' + (entry.food || 'TBC'));
+    lines.push('✍️ Reporting: ' + displayName(entry.reporting));
 
     if (members.length) {
       const order = { 'Adult': 0, 'Student': 1, 'Harvest': 2 };
