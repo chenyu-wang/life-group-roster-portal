@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.17.0 (2026-03-28) -->
+  <!-- Version: 1.17.1 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -105,6 +105,7 @@
     .toggle-row { display: flex; gap: 8px; flex-wrap: wrap; }
     .toggle-btn { border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: 7px 14px; font-size: .82rem; cursor: pointer; color: #64748b; font-weight: 600; transition: all .15s; }
     .toggle-btn.on { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .toggle-btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
 
     /* ---- Members ---- */
     .member-card { background: #fff; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.07); display: flex; align-items: center; gap: 12px; }
@@ -1107,10 +1108,11 @@ function openMemberForm(member) {
       </div>
       <div class="field">
         <label>Role Type</label>
-        <select id="m-roletype">
+        <select id="m-roletype" onchange="updateRoleToggles()">
           <option value="Adult"   ${(m.roleType||'Adult')==='Adult'  ?'selected':''}>Adult</option>
           <option value="Student" ${m.roleType==='Student'?'selected':''}>Student</option>
           <option value="Older Sunday School" ${m.roleType==='Older Sunday School'?'selected':''}>Older Sunday School</option>
+          <option value="Harvest" ${m.roleType==='Harvest'?'selected':''}>Harvest</option>
         </select>
       </div>
     </div>
@@ -1138,21 +1140,24 @@ function openMemberForm(member) {
     ${member ? `<button class="btn btn-danger" style="margin-top:8px;" onclick="confirmDeleteMember(${member.rowIndex}, '${member.name}')">Remove Member</button>` : ''}
     <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
   `);
+  updateRoleToggles();
 }
 
 function submitMember() {
   const name = document.getElementById('m-name').value.trim();
   if (!name) { showToast('Name is required'); return; }
 
+  const roleType = document.getElementById('m-roletype').value;
+  const noRole   = _isNoRoleType(roleType);
   const member = {
     rowIndex:     editingMember ? editingMember.rowIndex : null,
     name,
     group:        document.getElementById('m-group').value,
-    roleType:     document.getElementById('m-roletype').value,
-    canOrganise:  document.getElementById('mt-organise').classList.contains('on'),
-    canPW:        document.getElementById('mt-pw').classList.contains('on'),
-    canFacilitate:document.getElementById('mt-facilitate').classList.contains('on'),
-    canReport:    document.getElementById('mt-report').classList.contains('on'),
+    roleType,
+    canOrganise:  !noRole && document.getElementById('mt-organise').classList.contains('on'),
+    canPW:        !noRole && document.getElementById('mt-pw').classList.contains('on'),
+    canFacilitate:!noRole && document.getElementById('mt-facilitate').classList.contains('on'),
+    canReport:    !noRole && document.getElementById('mt-report').classList.contains('on'),
     canDrive:     document.getElementById('mt-drive').classList.contains('on'),
     active:       document.getElementById('m-active').value === 'true'
   };
@@ -1197,8 +1202,24 @@ function deleteMemberRow(rowIndex) {
 // =============================================
 // Role Eligibility Logic
 // =============================================
+function _isNoRoleType(roleType) {
+  return roleType === 'Older Sunday School' || roleType === 'Harvest';
+}
+
+function updateRoleToggles() {
+  const rt = document.getElementById('m-roletype');
+  if (!rt) return;
+  const disabled = _isNoRoleType(rt.value);
+  ['mt-organise', 'mt-pw', 'mt-facilitate', 'mt-report'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = disabled;
+    if (disabled) btn.classList.remove('on');
+  });
+}
+
 function getActive() {
-  return allMembers.filter(m => m.active && m.roleType !== 'Older Sunday School');
+  return allMembers.filter(m => m.active && !_isNoRoleType(m.roleType));
 }
 
 function groupMatch(member, group) {

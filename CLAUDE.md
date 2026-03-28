@@ -97,7 +97,8 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
 | v1.13.0 | Reordered columns for human readability: Time → col D, Ice Breaker → col I | `migrateSchemaToV113()` |
 | v1.16.0 | Added Can Drive (col I) to Members tab | `migrateSchemaToV116()` |
-| v1.17.0 | Renamed 'Harvest' → 'Older Sunday School' Role Type in Members tab; added 17 Older SS members via seeder | `migrateSchemaToV117()` + `importOlderSSMembers()` |
+| v1.17.0 | Added Older Sunday School member type; added 17 Older SS members via seeder | `importOlderSSMembers()` |
+| v1.17.1 | Kept Harvest member type; added 6 JAG1 Harvest members via seeder; role toggles disabled for Harvest/Older SS in edit form | `importHarvestMembers()` |
 
 ### Current schema (v1.13.0, 14 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |
@@ -127,7 +128,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | E | Can Facilitate | Checkbox |
 | F | Can Report | Checkbox |
 | G | Active | Checkbox |
-| H | Role Type | Dropdown: Adult, Student, Older Sunday School |
+| H | Role Type | Dropdown: Adult, Student, Older Sunday School, Harvest |
 | I | Can Drive | Checkbox; used to label members as "Drive" in group share messages |
 
 - Members tab uses positional reads (row[0]–row[8]) — column order must not change

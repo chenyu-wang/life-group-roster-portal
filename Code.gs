@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.17.0 (2026-03-28)
+// Version: 1.17.1 (2026-03-28)
 // ============================================================
 
-const VERSION      = '1.17.0';
+const VERSION      = '1.17.1';
 const VERSION_DATE = '2026-03-28';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -334,25 +334,6 @@ function migrateSchemaToV116() {
   Logger.log('Added Can Drive column at position ' + newCol + '. Run formatSheets() to apply checkbox formatting.');
 }
 
-// ---- Schema Migration: v1.16 → v1.17 ----
-// Run ONCE to rename 'Harvest' → 'Older Sunday School' in all existing Member rows.
-// After running, call formatSheets() to refresh the Role Type dropdown validation.
-function migrateSchemaToV117() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
-  if (!sheet || sheet.getLastRow() <= 1) { Logger.log('Members sheet empty or not found.'); return; }
-
-  const data = sheet.getDataRange().getValues();
-  let updated = 0;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][7] === 'Harvest') {
-      sheet.getRange(i + 1, 8).setValue('Older Sunday School');
-      updated++;
-    }
-  }
-  Logger.log('migrateSchemaToV117: updated ' + updated + ' row(s). Run formatSheets() to refresh dropdown.');
-}
-
 // ---- One-time import: Older Sunday School members ----
 // Run ONCE from the Apps Script editor, then DELETE this function.
 function importOlderSSMembers() {
@@ -380,6 +361,31 @@ function importOlderSSMembers() {
     }
   });
   Logger.log('importOlderSSMembers: added ' + added + ' member(s). Delete this function after confirming.');
+}
+
+// ---- One-time import: Harvest members (JAG1) ----
+// Run ONCE from the Apps Script editor, then DELETE this function.
+function importHarvestMembers() {
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
+  if (!sheet) { Logger.log('Members sheet not found.'); return; }
+
+  const names = ['James Han', 'Cherry', 'Marko', 'Samyar', 'Samira', 'Ava'];
+
+  const existing = sheet.getDataRange().getValues().slice(1)
+    .map(function(r) { return String(r[0]).toLowerCase().trim(); });
+
+  let added = 0;
+  names.forEach(function(name) {
+    if (!existing.includes(name.toLowerCase().trim())) {
+      // [Name, Group, Organise, P&W, Facilitate, Report, Active, RoleType, Drive]
+      sheet.appendRow([name, 'JAG1', false, false, false, false, true, 'Harvest', false]);
+      added++;
+    } else {
+      Logger.log('Skipped (already exists): ' + name);
+    }
+  });
+  Logger.log('importHarvestMembers: added ' + added + ' member(s). Delete this function after confirming.');
 }
 
 // ---- Sheet Formatting ----
@@ -514,7 +520,7 @@ function _formatMembersSheet(ss) {
   const roleIdx = lower.indexOf('role type');
   if (roleIdx >= 0) {
     const v = SpreadsheetApp.newDataValidation()
-      .requireValueInList(['Adult', 'Student', 'Older Sunday School'], true).setAllowInvalid(false).build();
+      .requireValueInList(['Adult', 'Student', 'Older Sunday School', 'Harvest'], true).setAllowInvalid(false).build();
     sheet.getRange(2, roleIdx + 1, dataRows, 1).setDataValidation(v);
   }
 
