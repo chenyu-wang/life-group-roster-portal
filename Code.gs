@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.16.0 (2026-03-25)
+// Version: 1.16.6 (2026-03-28)
 // ============================================================
 
-const VERSION      = '1.16.0';
-const VERSION_DATE = '2026-03-25';
+const VERSION      = '1.16.6';
+const VERSION_DATE = '2026-03-28';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
@@ -420,6 +420,20 @@ function _formatRosterSheet(ss) {
     .setFirstRowColor('#f5f3ff')
     .setSecondRowColor('#ffffff');
 
+  // --- Portal notice (right of data, always visible in header row) ---
+  const rNoticeCol = headers.length + 2;
+  sheet.getRange(1, rNoticeCol, 1, 4).merge()
+    .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
+    .setBackground('#fef08a')
+    .setFontColor('#713f12')
+    .setFontWeight('bold')
+    .setFontSize(9)
+    .setWrap(true)
+    .setVerticalAlignment('middle')
+    .setHorizontalAlignment('center');
+  sheet.setColumnWidth(rNoticeCol, 320);
+  sheet.setRowHeight(1, 48);
+
   Logger.log('Roster sheet formatted (' + headers.length + ' columns).');
 }
 
@@ -471,6 +485,20 @@ function _formatMembersSheet(ss) {
     .applyRowBanding()
     .setFirstRowColor('#f5f3ff')
     .setSecondRowColor('#ffffff');
+
+  // --- Portal notice (right of data, always visible in header row) ---
+  const mNoticeCol = headers.length + 2;
+  sheet.getRange(1, mNoticeCol, 1, 4).merge()
+    .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
+    .setBackground('#fef08a')
+    .setFontColor('#713f12')
+    .setFontWeight('bold')
+    .setFontSize(9)
+    .setWrap(true)
+    .setVerticalAlignment('middle')
+    .setHorizontalAlignment('center');
+  sheet.setColumnWidth(mNoticeCol, 320);
+  sheet.setRowHeight(1, 48);
 
   Logger.log('Members sheet formatted (' + headers.length + ' columns).');
 }
