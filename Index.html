@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.12 (2026-03-28) -->
+  <!-- Version: 1.17.0 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -1110,7 +1110,7 @@ function openMemberForm(member) {
         <select id="m-roletype">
           <option value="Adult"   ${(m.roleType||'Adult')==='Adult'  ?'selected':''}>Adult</option>
           <option value="Student" ${m.roleType==='Student'?'selected':''}>Student</option>
-          <option value="Harvest" ${m.roleType==='Harvest'?'selected':''}>Harvest</option>
+          <option value="Older Sunday School" ${m.roleType==='Older Sunday School'?'selected':''}>Older Sunday School</option>
         </select>
       </div>
     </div>
@@ -1198,7 +1198,7 @@ function deleteMemberRow(rowIndex) {
 // Role Eligibility Logic
 // =============================================
 function getActive() {
-  return allMembers.filter(m => m.active && m.roleType !== 'Harvest');
+  return allMembers.filter(m => m.active && m.roleType !== 'Older Sunday School');
 }
 
 function groupMatch(member, group) {
@@ -1447,7 +1447,7 @@ function shareCombinedWithNames(friday, entries) {
   const allActive    = allMembers.filter(m => m.active);
   const jag1Students = allActive.filter(m => m.roleType === 'Student' && (m.group === 'JAG1' || m.group === 'Both'));
   const jag2Students = allActive.filter(m => m.roleType === 'Student' && m.group === 'JAG2');
-  const olderSS      = allActive.filter(m => m.roleType === 'Harvest');
+  const olderSS      = allActive.filter(m => m.roleType === 'Older Sunday School');
   const adults       = allActive.filter(m => m.roleType === 'Adult');
   [jag1Students, jag2Students, olderSS, adults].forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name)));
 
@@ -1468,6 +1468,7 @@ function shareCombinedWithNames(friday, entries) {
     lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
     lines.push('📖 Word: ' + displayName(entry.facilitator));
     lines.push('🍛 Food: ' + (entry.food || 'TBC'));
+    lines.push('✍️ Reporting: ' + displayName(entry.reporting));
     lines.push('');
     lines.push('Attendance & Transport');
     lines.push('Hi all, please update.');
@@ -1486,7 +1487,7 @@ function shareCombinedWithNames(friday, entries) {
     }
     lines.push('');
     lines.push('Older Sunday School:');
-    olderSS.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - '));
+    olderSS.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name)));
     lines.push('');
     lines.push('Adults:');
     adults.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name)));
@@ -1509,31 +1510,28 @@ function shareCombinedWithNames(friday, entries) {
     lines.push('🍛 Food: ' + (entry.food || 'TBC'));
     lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
     lines.push('📖 Word: ' + displayName(entry.facilitator));
+    lines.push('✍️ Reporting: ' + displayName(entry.reporting));
 
     lines.push('');
     lines.push('Attendance & Transport');
     lines.push('Please update, drop a message here if you need a ride. Thank you.');
 
     let idx = 1;
-    if (jag1Students.length || olderSS.filter(m => m.group === 'JAG1' || m.group === 'Both').length) {
+    if (jag1Students.length) {
       lines.push('');
       lines.push('JAG 1');
-      [...jag1Students, ...olderSS.filter(m => m.group === 'JAG1' || m.group === 'Both')]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(m => {
-          const label = m.name === hostName ? 'Host' : '';
-          lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
-        });
+      jag1Students.forEach(m => {
+        const label = m.name === hostName ? 'Host' : '';
+        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+      });
     }
-    if (jag2Students.length || olderSS.filter(m => m.group === 'JAG2').length) {
+    if (jag2Students.length) {
       lines.push('');
       lines.push('JAG 2');
-      [...jag2Students, ...olderSS.filter(m => m.group === 'JAG2')]
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .forEach(m => {
-          const label = m.name === hostName ? 'Host' : '';
-          lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
-        });
+      jag2Students.forEach(m => {
+        const label = m.name === hostName ? 'Host' : '';
+        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+      });
     }
     if (adults.length) {
       lines.push('');
