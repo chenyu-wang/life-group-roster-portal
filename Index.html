@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.4 (2026-03-25) -->
+  <!-- Version: 1.16.5 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -491,7 +491,12 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
     });
     if (eventType !== 'Special' && (jag1.organiser || jag2.organiser)) card.appendChild(orgSplit);
 
-    card.appendChild(buildCardFooter(friday, entries, ts));
+    // Combined footer: use shareCombinedWithNames instead of generic shareEvent
+    const _combEnc    = encodeEntries(entries);
+    const _combFooter = document.createElement('div');
+    _combFooter.className = 'card-footer';
+    _combFooter.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + timeAgo(ts) : ''}</span><button class="share-btn" onclick="shareCombinedWithNames(new Date('${toISODate(friday)}'), ${_combEnc})">📤 Share Combined + Name List</button><button class="edit-btn" onclick="openEditEntries(${_combEnc})">✏️ Edit</button>`;
+    card.appendChild(_combFooter);
 
   } else {
     // ---- Separated layout ----
@@ -1417,6 +1422,80 @@ function shareEvent(friday, entries) {
     }).catch(function() {
       _fallbackCopy(text);
     });
+  } else {
+    _fallbackCopy(text);
+  }
+}
+
+function shareCombinedWithNames(friday, entries) {
+  const entriesArr = Array.isArray(entries) ? entries : [entries];
+  const entry = entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
+
+  const _days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dateStr = _days[friday.getDay()] + ', ' + friday.getDate() + ' ' + _months[friday.getMonth()] + ' ' + friday.getFullYear();
+
+  const lines = [];
+  lines.push('Arise in Faith, Courage & Boldness to Impact. It is time for..');
+  lines.push('🎊 COMBINED JAG 1&2');
+  lines.push('');
+  lines.push('Date: ' + dateStr);
+  if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
+  if (entry.venue)       lines.push('🏡 ' + entry.venue);
+  lines.push('');
+  if (entry.food)        lines.push('🍛 Food: ' + entry.food);
+  if (entry.pw)          lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
+  if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
+
+  const allActive    = allMembers.filter(m => m.active);
+  const jag1Students = allActive.filter(m => m.roleType !== 'Adult' && (m.group === 'JAG1' || m.group === 'Both'));
+  const jag2Students = allActive.filter(m => m.roleType !== 'Adult' && m.group === 'JAG2');
+  const adults       = allActive.filter(m => m.roleType === 'Adult');
+
+  jag1Students.sort((a, b) => a.name.localeCompare(b.name));
+  jag2Students.sort((a, b) => a.name.localeCompare(b.name));
+  adults.sort((a, b) => a.name.localeCompare(b.name));
+
+  const hostName = detectHost(entry.venue, allActive);
+
+  if (jag1Students.length || jag2Students.length || adults.length) {
+    lines.push('');
+    lines.push('Attendance & Transport');
+    lines.push('Please update, drop a message here if you need a ride. Thank you.');
+
+    let idx = 1;
+
+    if (jag1Students.length) {
+      lines.push('');
+      lines.push('JAG 1');
+      jag1Students.forEach(m => {
+        const label = m.name === hostName ? 'Host' : '';
+        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+      });
+    }
+
+    if (jag2Students.length) {
+      lines.push('');
+      lines.push('JAG 2');
+      jag2Students.forEach(m => {
+        const label = m.name === hostName ? 'Host' : '';
+        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+      });
+    }
+
+    if (adults.length) {
+      lines.push('');
+      lines.push('Adults');
+      adults.forEach(m => {
+        const label = m.name === hostName ? 'Host' : m.canDrive ? 'Drive' : '';
+        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+      });
+    }
+  }
+
+  const text = lines.join('\n');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!')).catch(() => _fallbackCopy(text));
   } else {
     _fallbackCopy(text);
   }
