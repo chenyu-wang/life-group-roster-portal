@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.17.1 (2026-03-28)
+// Version: 1.17.2 (2026-03-28)
 // ============================================================
 
-const VERSION      = '1.17.1';
+const VERSION      = '1.17.2';
 const VERSION_DATE = '2026-03-28';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -476,7 +476,9 @@ function _formatRosterSheet(ss) {
 
   // --- Portal notice (right of data, always visible in header row) ---
   const rNoticeCol = headers.length + 2;
-  sheet.getRange(1, rNoticeCol, 1, 4).merge()
+  const rNoticeRange = sheet.getRange(1, rNoticeCol, 1, 4);
+  rNoticeRange.breakApart();
+  rNoticeRange.merge()
     .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
     .setBackground('#fef08a')
     .setFontColor('#713f12')
@@ -542,7 +544,9 @@ function _formatMembersSheet(ss) {
 
   // --- Portal notice (right of data, always visible in header row) ---
   const mNoticeCol = headers.length + 2;
-  sheet.getRange(1, mNoticeCol, 1, 4).merge()
+  const mNoticeRange = sheet.getRange(1, mNoticeCol, 1, 4);
+  mNoticeRange.breakApart();
+  mNoticeRange.merge()
     .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
     .setBackground('#fef08a')
     .setFontColor('#713f12')
