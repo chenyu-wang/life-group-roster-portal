@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.10 (2026-03-28) -->
+  <!-- Version: 1.16.11 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -500,7 +500,8 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       // Youth Hour / Combined: rich share with name list
       const _combFooter = document.createElement('div');
       _combFooter.className = 'card-footer';
-      _combFooter.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + formatUpdatedAt(ts) : ''}</span><button class="share-btn" onclick="shareCombinedWithNames(new Date('${toISODate(friday)}'), ${_combEnc})">📤 Share Combined + Name List</button><button class="edit-btn" onclick="openEditEntries(${_combEnc})">✏️ Edit</button>`;
+      const _shareLabel = eventType === 'Youth Hour' ? '📤 Share Youth Hour + Name List' : '📤 Share Combined + Name List';
+      _combFooter.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + formatUpdatedAt(ts) : ''}</span><button class="share-btn" onclick="shareCombinedWithNames(new Date('${toISODate(friday)}'), ${_combEnc})">` + _shareLabel + `</button><button class="edit-btn" onclick="openEditEntries(${_combEnc})">✏️ Edit</button>`;
       card.appendChild(_combFooter);
     }
 
@@ -1440,57 +1441,100 @@ function shareEvent(friday, entries) {
 
 function shareCombinedWithNames(friday, entries) {
   const entriesArr = Array.isArray(entries) ? entries : [entries];
-  const entry = entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
-  const dateStr = formatShareDate(friday);
-
-  const lines = [];
-  lines.push('Arise in Faith, Courage & Boldness to Impact. It is time for..');
-  lines.push('🎊 COMBINED JAG 1&2');
-  lines.push('');
-  lines.push('Date: ' + dateStr);
-  if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
-  if (entry.venue)       lines.push('🏡 ' + entry.venue);
-  lines.push('');
-  if (entry.food)        lines.push('🍛 Food: ' + entry.food);
-  if (entry.pw)          lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
-  if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
+  const entry      = entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
+  const eventType  = entry.eventType || '';
 
   const allActive    = allMembers.filter(m => m.active);
-  const jag1Students = allActive.filter(m => m.roleType !== 'Adult' && (m.group === 'JAG1' || m.group === 'Both'));
-  const jag2Students = allActive.filter(m => m.roleType !== 'Adult' && m.group === 'JAG2');
+  const jag1Students = allActive.filter(m => m.roleType === 'Student' && (m.group === 'JAG1' || m.group === 'Both'));
+  const jag2Students = allActive.filter(m => m.roleType === 'Student' && m.group === 'JAG2');
+  const olderSS      = allActive.filter(m => m.roleType === 'Harvest');
   const adults       = allActive.filter(m => m.roleType === 'Adult');
+  [jag1Students, jag2Students, olderSS, adults].forEach(arr => arr.sort((a, b) => a.name.localeCompare(b.name)));
 
-  jag1Students.sort((a, b) => a.name.localeCompare(b.name));
-  jag2Students.sort((a, b) => a.name.localeCompare(b.name));
-  adults.sort((a, b) => a.name.localeCompare(b.name));
+  const lines = [];
 
-  const hostName = detectHost(entry.venue, allActive);
+  if (eventType === 'Youth Hour') {
+    // ---- Youth Hour format ----
+    const _days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const youthDate = _days[friday.getDay()] + ' ' + friday.getDate() + ' ' + _months[friday.getMonth()] + ' ' + friday.getFullYear();
 
-  if (jag1Students.length || jag2Students.length || adults.length) {
+    lines.push('ARISE and SHINE for JESUS in Every Season; it is time for:');
+    lines.push('🎉 YOUTH HOUR, ' + youthDate);
+    const timeVenue = [entry.time ? formatTimeShare(entry.time) : '', entry.venue ? '@ ' + entry.venue : ''].filter(Boolean);
+    if (timeVenue.length) lines.push('🕰️ ' + timeVenue.join(' '));
+    lines.push('');
+    if (entry.iceBreaker)  lines.push('🧊 Icebreaker: ' + displayName(entry.iceBreaker));
+    if (entry.pw)          lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
+    if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
+    if (entry.food)        lines.push('🍛 Food: ' + entry.food);
+    lines.push('');
+    lines.push('Attendance & Transport');
+    lines.push('Hi all, please update.');
+    lines.push('Drop a message here if you need a ride. Thank you.');
+
+    let idx = 1;
+    if (jag1Students.length) {
+      lines.push('');
+      lines.push('JAG 1');
+      jag1Students.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - '));
+    }
+    if (jag2Students.length) {
+      lines.push('');
+      lines.push('JAG 2');
+      jag2Students.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - '));
+    }
+    lines.push('');
+    lines.push('Older Sunday School:');
+    olderSS.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - '));
+    lines.push('');
+    lines.push('Adults:');
+    adults.forEach(m => lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name)));
+    lines.push('');
+    lines.push('Newcomers:');
+    lines.push('');
+
+  } else {
+    // ---- Combined format ----
+    const dateStr  = formatShareDate(friday);
+    const hostName = detectHost(entry.venue, allActive);
+
+    lines.push('Arise in Faith, Courage & Boldness to Impact. It is time for..');
+    lines.push('🎊 COMBINED JAG 1&2');
+    lines.push('');
+    lines.push('Date: ' + dateStr);
+    if (entry.time)        lines.push('🕰️ Time: ' + formatTimeShare(entry.time));
+    if (entry.venue)       lines.push('🏡 ' + entry.venue);
+    lines.push('');
+    if (entry.food)        lines.push('🍛 Food: ' + entry.food);
+    if (entry.pw)          lines.push('🎵 Praise & Worship: ' + displayName(entry.pw));
+    if (entry.facilitator) lines.push('📖 Word: ' + displayName(entry.facilitator));
+
     lines.push('');
     lines.push('Attendance & Transport');
     lines.push('Please update, drop a message here if you need a ride. Thank you.');
 
     let idx = 1;
-
-    if (jag1Students.length) {
+    if (jag1Students.length || olderSS.filter(m => m.group === 'JAG1' || m.group === 'Both').length) {
       lines.push('');
       lines.push('JAG 1');
-      jag1Students.forEach(m => {
-        const label = m.name === hostName ? 'Host' : '';
-        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
-      });
+      [...jag1Students, ...olderSS.filter(m => m.group === 'JAG1' || m.group === 'Both')]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(m => {
+          const label = m.name === hostName ? 'Host' : '';
+          lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+        });
     }
-
-    if (jag2Students.length) {
+    if (jag2Students.length || olderSS.filter(m => m.group === 'JAG2').length) {
       lines.push('');
       lines.push('JAG 2');
-      jag2Students.forEach(m => {
-        const label = m.name === hostName ? 'Host' : '';
-        lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
-      });
+      [...jag2Students, ...olderSS.filter(m => m.group === 'JAG2')]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(m => {
+          const label = m.name === hostName ? 'Host' : '';
+          lines.push(String(idx++).padStart(2) + '. ' + displayName(m.name) + ' - ' + label);
+        });
     }
-
     if (adults.length) {
       lines.push('');
       lines.push('Adults');
