@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.9 (2026-03-28) -->
+  <!-- Version: 1.16.10 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -493,12 +493,16 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
     });
     if (eventType !== 'Special' && (jag1.organiser || jag2.organiser)) card.appendChild(orgSplit);
 
-    // Combined footer: use shareCombinedWithNames instead of generic shareEvent
-    const _combEnc    = encodeEntries(entries);
-    const _combFooter = document.createElement('div');
-    _combFooter.className = 'card-footer';
-    _combFooter.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + formatUpdatedAt(ts) : ''}</span><button class="share-btn" onclick="shareCombinedWithNames(new Date('${toISODate(friday)}'), ${_combEnc})">📤 Share Combined + Name List</button><button class="edit-btn" onclick="openEditEntries(${_combEnc})">✏️ Edit</button>`;
-    card.appendChild(_combFooter);
+    const _combEnc = encodeEntries(entries);
+    if (eventType === 'Special') {
+      card.appendChild(buildCardFooter(friday, entries, ts));
+    } else {
+      // Youth Hour / Combined: rich share with name list
+      const _combFooter = document.createElement('div');
+      _combFooter.className = 'card-footer';
+      _combFooter.innerHTML = `<span class="card-ts">${ts ? 'Updated ' + formatUpdatedAt(ts) : ''}</span><button class="share-btn" onclick="shareCombinedWithNames(new Date('${toISODate(friday)}'), ${_combEnc})">📤 Share Combined + Name List</button><button class="edit-btn" onclick="openEditEntries(${_combEnc})">✏️ Edit</button>`;
+      card.appendChild(_combFooter);
+    }
 
   } else {
     // ---- Separated layout ----
