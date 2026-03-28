@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.7 (2026-03-28) -->
+  <!-- Version: 1.16.8 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -42,9 +42,6 @@
     .group-tag { display: inline-block; font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-bottom: 6px; }
     .tag-jag1 { background: #dbeafe; color: #1d4ed8; }
     .tag-jag2 { background: #ede9fe; color: #6d28d9; }
-    .role-row { display: flex; flex-wrap: wrap; gap: 3px 12px; margin-top: 5px; font-size: .8rem; }
-    .role-pill { color: #475569; white-space: nowrap; }
-    .role-pill b { color: #1e293b; font-weight: 700; }
     .venue-line { font-size: .8rem; color: #475569; margin: 4px 0 2px; }
     .venue-line b { color: #1e293b; font-weight: 600; }
     .card-ts { font-size: .68rem; color: #94a3b8; flex: 1; }
@@ -58,8 +55,6 @@
     .date-card.is-past .event-badge { opacity: .6; }
     .date-card.is-past .venue-line  { color: #94a3b8; }
     .date-card.is-past .venue-line b { color: #64748b; }
-    .date-card.is-past .role-pill   { color: #94a3b8; }
-    .date-card.is-past .role-pill b { color: #64748b; }
     .date-card.is-past .shared-section { background: #f1f5f9; }
     .date-card.is-past .shared-label   { color: #cbd5e1; }
     .date-card.is-past .card-ts        { color: #cbd5e1; }
@@ -1358,8 +1353,11 @@ function formatDateLong(d) {
   return d.toLocaleDateString('en-AU', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
 }
 
-function formatDateShort(d) {
-  return d.toLocaleDateString('en-AU', { day:'numeric', month:'short' });
+// "Friday, 27 March 2026" — used in share messages
+function formatShareDate(d) {
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return days[d.getDay()] + ', ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
 }
 
 // =============================================
@@ -1439,10 +1437,7 @@ function shareEvent(friday, entries) {
 function shareCombinedWithNames(friday, entries) {
   const entriesArr = Array.isArray(entries) ? entries : [entries];
   const entry = entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
-
-  const _days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const dateStr = _days[friday.getDay()] + ', ' + friday.getDate() + ' ' + _months[friday.getMonth()] + ' ' + friday.getFullYear();
+  const dateStr = formatShareDate(friday);
 
   const lines = [];
   lines.push('Arise in Faith, Courage & Boldness to Impact. It is time for..');
@@ -1514,10 +1509,7 @@ function shareGroupWithNames(friday, entryOrArr) {
   const entry = Array.isArray(entryOrArr) ? entryOrArr[0] : entryOrArr;
   const grp   = entry.group;
 
-  const _days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const dateStr = _days[friday.getDay()] + ', ' + friday.getDate() + ' ' + _months[friday.getMonth()] + ' ' + friday.getFullYear();
-
+  const dateStr  = formatShareDate(friday);
   const members  = allMembers.filter(m => m.active && groupMatch(m, grp));
   const hostName = detectHost(entry.venue, members);
   const lines    = [];
