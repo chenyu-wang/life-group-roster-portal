@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.17.2 (2026-03-28)
+// Version: 1.17.3 (2026-03-28)
 // ============================================================
 
-const VERSION      = '1.17.2';
+const VERSION      = '1.17.3';
 const VERSION_DATE = '2026-03-28';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -475,10 +475,9 @@ function _formatRosterSheet(ss) {
     .setSecondRowColor('#ffffff');
 
   // --- Portal notice (right of data, always visible in header row) ---
+  sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
   const rNoticeCol = headers.length + 2;
-  const rNoticeRange = sheet.getRange(1, rNoticeCol, 1, 4);
-  rNoticeRange.breakApart();
-  rNoticeRange.merge()
+  sheet.getRange(1, rNoticeCol, 1, 4).merge()
     .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
     .setBackground('#fef08a')
     .setFontColor('#713f12')
@@ -543,10 +542,10 @@ function _formatMembersSheet(ss) {
     .setSecondRowColor('#ffffff');
 
   // --- Portal notice (right of data, always visible in header row) ---
+  // Break apart entire header row first so any stale merge is fully covered regardless of column count changes.
+  sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
   const mNoticeCol = headers.length + 2;
-  const mNoticeRange = sheet.getRange(1, mNoticeCol, 1, 4);
-  mNoticeRange.breakApart();
-  mNoticeRange.merge()
+  sheet.getRange(1, mNoticeCol, 1, 4).merge()
     .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
     .setBackground('#fef08a')
     .setFontColor('#713f12')
