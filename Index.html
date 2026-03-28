@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.16.8 (2026-03-28) -->
+  <!-- Version: 1.16.9 (2026-03-28) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -1510,7 +1510,8 @@ function shareGroupWithNames(friday, entryOrArr) {
   const grp   = entry.group;
 
   const dateStr  = formatShareDate(friday);
-  const members  = allMembers.filter(m => m.active && groupMatch(m, grp));
+  // Separated LG: exact group match only — 'Both' members attend Combined/Youth Hour, not per-group LG
+  const members  = allMembers.filter(m => m.active && m.group === grp);
   const hostName = detectHost(entry.venue, members);
   const lines    = [];
 
