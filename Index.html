@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.17.3 (2026-03-28) -->
+  <!-- Version: 1.17.4 (2026-03-29) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -465,6 +465,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
     shared.innerHTML = `
       <div class="shared-label">${isSpecial ? 'Special Event' : 'Shared'}</div>
       ${isSpecial ? `
+        ${jag1.time  ? `<div class="venue-line">🕰️ Time: <b>${formatTime(jag1.time)}</b></div>` : ''}
         ${jag1.venue ? `<div class="venue-line">🏡 Venue: <b>${jag1.venue}</b></div>` : ''}
         ${(jag1.notes||'').split('\n').filter(Boolean).map(line => {
           const ci = line.indexOf(':');
@@ -472,6 +473,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
             ? `<div class="venue-line"><b>${line.slice(0,ci).trim()}:</b> ${line.slice(ci+1).trim()}</div>`
             : `<div class="venue-line">${line}</div>`;
         }).join('')}` : `
+      ${jag1.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(jag1.time)}</b></div>` : ''}
       <div class="venue-line">🏡 Venue: <b>${jag1.venue || 'TBC'}</b></div>
       <div class="venue-line">📖 Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
       <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
@@ -523,6 +525,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
             <button class="edit-btn" onclick="openEditEntries(${encOne})">✏️ Edit ${entry.group}</button>
           </div>
         </div>
+        ${entry.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(entry.time)}</b></div>` : ''}
         <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
         ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
         <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>

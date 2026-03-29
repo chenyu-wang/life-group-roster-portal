@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.17.3 (2026-03-28)
+// Version: 1.17.4 (2026-03-29)
 // ============================================================
 
-const VERSION      = '1.17.3';
-const VERSION_DATE = '2026-03-28';
+const VERSION      = '1.17.4';
+const VERSION_DATE = '2026-03-29';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
