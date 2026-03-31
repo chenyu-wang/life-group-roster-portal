@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.18.0 (2026-03-31) -->
+  <!-- Version: 1.18.1 (2026-03-31) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -267,7 +267,8 @@ function finishSave(msg) {
   editingEntries = [];
   currentView = 'home';
   setActiveNav('home');
-  loadData();
+  renderHome();   // show home immediately with cached data
+  loadData();     // refresh data in background
 }
 
 function encodeEntries(obj) {
@@ -635,7 +636,7 @@ function renderAdd(prefillDate) {
 
       <button class="btn btn-primary" onclick="submitForm()">${isEdit ? 'Save Changes' : 'Save to Roster'}</button>
       ${deleteBtn}
-      ${isEdit ? `<button class="btn btn-secondary" onclick="editingEntries=[];showView('home')">Cancel</button>` : ''}
+      <button class="btn btn-secondary" onclick="editingEntries=[];showView('home')">Cancel</button>
     </div>
   `;
   c.appendChild(wrap);
@@ -695,21 +696,28 @@ function rebuildSections(eventType) {
   // Special: venue + user-defined custom fields (stored as "Label: Value\n..." in notes)
   if (eventType === 'Special') {
     const ref = editingEntries[0] || {};
-    const existing = (ref.notes || '').split('\n').filter(Boolean).map(line => {
+    const allLines = (ref.notes || '').split('\n').filter(Boolean).map(line => {
       const idx = line.indexOf(':');
       return idx > 0 ? { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() } : { label: '', value: line.trim() };
     });
+    const commentLine  = allLines.find(f => f.label.toLowerCase() === 'comments');
+    const commentText  = commentLine ? commentLine.value : '';
+    const customFields = allLines.filter(f => f.label.toLowerCase() !== 'comments');
     const div = document.createElement('div');
     div.innerHTML = `
       <div class="field">
         <label>🏡 Venue (optional)</label>
         <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
       </div>
+      <div class="field">
+        <label>💬 Comments (optional)</label>
+        <input type="text" id="special-comment" placeholder="General notes or comments..." value="${commentText.replace(/"/g,'&quot;')}" />
+      </div>
       <div id="special-fields-container"></div>
       <button type="button" class="add-field-btn" onclick="addSpecialField()">+ Add Field</button>`;
     container.appendChild(div);
     const sfContainer = div.querySelector('#special-fields-container');
-    const seedFields = existing.length ? existing : [{ label: '', value: '' }];
+    const seedFields = customFields.length ? customFields : [{ label: '', value: '' }];
     seedFields.forEach(f => addSpecialField(f.label, f.value, sfContainer));
     return;
   }
@@ -910,17 +918,20 @@ function submitForm() {
 
   // Special: collect custom fields → serialize into notes
   if (eventType === 'Special') {
-    const customFields = Array.from(document.querySelectorAll('.special-field-row')).map(row => {
+    const customFieldLines = Array.from(document.querySelectorAll('.special-field-row')).map(row => {
       const label = row.querySelector('.sf-label').value.trim();
       const value = row.querySelector('.sf-value').value.trim();
       return (label && value) ? label + ': ' + value : null;
-    }).filter(Boolean).join('\n');
+    }).filter(Boolean);
+    const commentText = val('special-comment').trim();
+    if (commentText) customFieldLines.push('Comments: ' + commentText);
+    const notes    = customFieldLines.join('\n');
     const venue    = val('shared-venue');
     const time     = val('f-time') || '';
     const groups   = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
     const toSaveS  = groups.map(grp => {
       const existing = editingEntries.find(e => e.group === grp);
-      return { rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes: customFields, iceBreaker: '', time };
+      return { rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time };
     });
     google.script.run
       .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } finishSave('Saved!'); })
