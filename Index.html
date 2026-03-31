@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.17.4 (2026-03-29) -->
+  <!-- Version: 1.18.0 (2026-03-31) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -901,13 +901,10 @@ function submitForm() {
         time:  val('f-time') || ''
       };
     });
-    let saved = 0;
-    toSave.forEach(entry => {
-      google.script.run
-        .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } if (++saved===toSave.length) finishSave('Saved!'); })
-        .withFailureHandler(e => showToast('Error: '+e.message))
-        .saveRosterEntry(entry);
-    });
+    google.script.run
+      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } finishSave('Saved!'); })
+      .withFailureHandler(e => showToast('Error: '+e.message))
+      .saveRosterEntries(toSave);
     return;
   }
 
@@ -918,16 +915,17 @@ function submitForm() {
       const value = row.querySelector('.sf-value').value.trim();
       return (label && value) ? label + ': ' + value : null;
     }).filter(Boolean).join('\n');
-    const venue = val('shared-venue');
-    const groups = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
-    let saved = 0;
-    groups.forEach(grp => {
+    const venue    = val('shared-venue');
+    const time     = val('f-time') || '';
+    const groups   = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
+    const toSaveS  = groups.map(grp => {
       const existing = editingEntries.find(e => e.group === grp);
-      google.script.run
-        .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } if (++saved===groups.length) finishSave('Saved!'); })
-        .withFailureHandler(e => showToast('Error: '+e.message))
-        .saveRosterEntry({ rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes: customFields, iceBreaker: '', time: val('f-time') || '' });
+      return { rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes: customFields, iceBreaker: '', time };
     });
+    google.script.run
+      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } finishSave('Saved!'); })
+      .withFailureHandler(e => showToast('Error: '+e.message))
+      .saveRosterEntries(toSaveS);
     return;
   }
 
@@ -960,16 +958,13 @@ function submitForm() {
     };
   });
 
-  let saved = 0;
-  toSave.forEach(entry => {
-    google.script.run
-      .withSuccessHandler(function(result) {
-        if (!result.success) { showToast('Error: ' + result.error); return; }
-        if (++saved === toSave.length) finishSave('Saved!');
-      })
-      .withFailureHandler(err => showToast('Error: ' + err.message))
-      .saveRosterEntry(entry);
-  });
+  google.script.run
+    .withSuccessHandler(function(result) {
+      if (!result.success) { showToast('Error: ' + result.error); return; }
+      finishSave('Saved!');
+    })
+    .withFailureHandler(err => showToast('Error: ' + err.message))
+    .saveRosterEntries(toSave);
 }
 
 function val(id) {

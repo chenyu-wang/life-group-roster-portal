@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.17.4 (2026-03-29)
+// Version: 1.18.0 (2026-03-31)
 // ============================================================
 
-const VERSION      = '1.17.4';
-const VERSION_DATE = '2026-03-29';
+const VERSION      = '1.18.0';
+const VERSION_DATE = '2026-03-31';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
@@ -77,8 +77,10 @@ function getRosterEntries() {
 
     const rawUpdatedAt = g(row, 'updatedAt');
     const rawTime      = g(row, 'time');
+    // Use 'UTC' (not script timezone) — Sheets stores time-only values as UTC fractions.
+    // Applying the local timezone shifts the time by +10/+11 hours, corrupting the value.
     const timeStr      = rawTime instanceof Date
-                         ? Utilities.formatDate(rawTime, tz, 'HH:mm')
+                         ? Utilities.formatDate(rawTime, 'UTC', 'HH:mm')
                          : String(rawTime || '');
     entries.push({
       rowIndex:    i + 1,
@@ -193,6 +195,96 @@ function saveRosterEntry(entry) {
   } catch (e) {
     return { success: false, error: e.toString() };
   }
+}
+
+// Batch version: saves all entries in one server round-trip (one sheet open, one read, one sort).
+// Always prefer this over calling saveRosterEntry in a loop.
+function saveRosterEntries(entries) {
+  try {
+    const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+    if (!sheet) return { success: false, error: 'Roster sheet not found' };
+
+    const data    = sheet.getDataRange().getValues();
+    const col     = _rosterColMap(data[0]);
+    const numCols = data[0].length;
+
+    entries.forEach(function(entry) {
+      const dp      = entry.date.split('-');
+      const dateObj = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]));
+      const entryId = entry.id || Utilities.getUuid();
+      const rowData = new Array(numCols).fill('');
+      const s = function(key, v) { if (col[key] !== undefined) rowData[col[key]] = v; };
+      s('date',        dateObj);
+      s('group',       entry.group);
+      s('eventType',   entry.eventType);
+      s('venue',       entry.venue       || '');
+      s('organiser',   entry.organiser   || '');
+      s('pw',          entry.pw          || '');
+      s('facilitator', entry.facilitator || '');
+      s('food',        entry.food        || '');
+      s('reporting',   entry.reporting   || '');
+      s('notes',       entry.notes       || '');
+      s('iceBreaker',  entry.iceBreaker  || '');
+      s('updatedAt',   new Date());
+      s('time',        entry.time        || '');
+      s('id',          entryId);
+
+      let found = false;
+      if (entry.id && col.id !== undefined) {
+        for (let i = 1; i < data.length; i++) {
+          if (String(data[i][col.id]) === String(entry.id)) {
+            sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
+            data[i] = rowData; // keep local copy fresh for subsequent entries
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found) {
+        if (entry.rowIndex) {
+          sheet.getRange(entry.rowIndex, 1, 1, numCols).setValues([rowData]);
+        } else {
+          sheet.appendRow(rowData);
+        }
+      }
+    });
+
+    sortRosterSheet(sheet);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+// ---- One-time fix: convert Time column from time-fraction to plain HH:mm text ----
+// Run ONCE from Apps Script editor if times displayed incorrectly after updating.
+// Then run formatSheets(). Delete this function after confirming.
+function fixTimeValues() {
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+  if (!sheet || sheet.getLastRow() <= 1) { Logger.log('Nothing to fix.'); return; }
+
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const col = _rosterColMap(headers);
+  if (col.time === undefined) { Logger.log('Time column not found.'); return; }
+
+  const lastRow    = sheet.getLastRow();
+  const timeColNum = col.time + 1;
+  const timeRange  = sheet.getRange(2, timeColNum, lastRow - 1, 1);
+  const vals = timeRange.getValues();
+  let converted = 0;
+  const fixed = vals.map(function(row) {
+    const v = row[0];
+    if (v instanceof Date) {
+      converted++;
+      return [Utilities.formatDate(v, 'UTC', 'HH:mm')];
+    }
+    return [String(v || '')];
+  });
+  timeRange.setNumberFormat('@');
+  timeRange.setValues(fixed);
+  Logger.log('fixTimeValues: converted ' + converted + ' time value(s) to HH:mm text. Delete this function after confirming.');
 }
 
 function deleteRosterEntry(rowIndex) {
@@ -447,9 +539,13 @@ function _formatRosterSheet(ss) {
     sheet.getRange(1, col.id + 1).setNote('UUID auto-generated by the app. Do not edit — used for reliable row lookup.');
   }
 
-  // --- Time: header note ---
+  // --- Time: header note + plain-text format (prevents Sheets auto-converting "18:30" to a time fraction) ---
   if (col.time !== undefined) {
     sheet.getRange(1, col.time + 1).setNote('24-hour format, e.g. 18:30 for 6:30 PM. Leave blank if no fixed time.');
+    const timeDataRows = sheet.getLastRow() - 1;
+    if (timeDataRows > 0) {
+      sheet.getRange(2, col.time + 1, timeDataRows, 1).setNumberFormat('@');
+    }
   }
 
   // --- Group: dropdown validation ---
