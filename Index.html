@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.18.2 (2026-04-05) -->
+  <!-- Version: 1.18.3 (2026-04-05) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -262,12 +262,22 @@ function setActiveNav(view) {
     document.getElementById('nav-' + v).classList.toggle('active', v === view));
 }
 
+function _mergeEntriesIntoCache(savedEntries) {
+  savedEntries.forEach(function(saved) {
+    const idx = saved.id
+      ? allEntries.findIndex(function(e) { return e.id === saved.id; })
+      : allEntries.findIndex(function(e) { return e.date === saved.date && e.group === saved.group; });
+    if (idx >= 0) allEntries[idx] = Object.assign({}, allEntries[idx], saved);
+    else allEntries.push(saved);
+  });
+}
+
 function finishSave(msg) {
   showToast(msg || 'Saved!');
   editingEntries = [];
   currentView = 'home';
   setActiveNav('home');
-  renderHome();   // show home immediately with cached data
+  renderHome();   // show home immediately with updated cached data
   loadData();     // refresh data in background
 }
 
@@ -423,7 +433,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   const combined  = isCombinedType(eventType);
   const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
   const dateSub = combined ? (eventType === 'Youth Hour' ? 'JAG1 + JAG2 + Older Sunday School Students' : eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
-  const timeStr = entries[0] && entries[0].time ? formatTime(entries[0].time) : '';
+  const timeStr = (entries.find(e => e.time) || {}).time ? formatTime(entries.find(e => e.time).time) : '';
   const dateSub2 = [timeStr, dateSub].filter(Boolean).join(' · ');
 
   // ---- Header ----
@@ -461,14 +471,15 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
     const ts    = jag1.updatedAt || jag2.updatedAt || '';
 
     const isSpecial = eventType === 'Special';
+    const specialTime = jag1.time || jag2.time;
     const shared = document.createElement('div');
     shared.className = 'shared-section';
     shared.innerHTML = `
       <div class="shared-label">${isSpecial ? 'Special Event' : 'Shared'}</div>
       ${isSpecial ? `
-        ${jag1.time  ? `<div class="venue-line">🕰️ Time: <b>${formatTime(jag1.time)}</b></div>` : ''}
-        ${jag1.venue ? `<div class="venue-line">🏡 Venue: <b>${jag1.venue}</b></div>` : ''}
-        ${(jag1.notes||'').split('\n').filter(Boolean).map(line => {
+        ${specialTime ? `<div class="venue-line">🕰️ Time: <b>${formatTime(specialTime)}</b></div>` : ''}
+        ${jag1.venue || jag2.venue ? `<div class="venue-line">🏡 Venue: <b>${jag1.venue || jag2.venue}</b></div>` : ''}
+        ${(jag1.notes || jag2.notes || '').split('\n').filter(Boolean).map(line => {
           const ci = line.indexOf(':');
           return ci > 0
             ? `<div class="venue-line"><b>${line.slice(0,ci).trim()}:</b> ${line.slice(ci+1).trim()}</div>`
@@ -934,7 +945,7 @@ function submitForm() {
       return { rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time };
     });
     google.script.run
-      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } finishSave('Saved!'); })
+      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSaveS); finishSave('Saved!'); })
       .withFailureHandler(e => showToast('Error: '+e.message))
       .saveRosterEntries(toSaveS);
     return;
@@ -972,6 +983,7 @@ function submitForm() {
   google.script.run
     .withSuccessHandler(function(result) {
       if (!result.success) { showToast('Error: ' + result.error); return; }
+      _mergeEntriesIntoCache(toSave);
       finishSave('Saved!');
     })
     .withFailureHandler(err => showToast('Error: ' + err.message))

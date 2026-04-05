@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.18.2 (2026-04-05)
+// Version: 1.18.3 (2026-04-05)
 // ============================================================
 
-const VERSION      = '1.18.2';
+const VERSION      = '1.18.3';
 const VERSION_DATE = '2026-04-05';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -178,6 +178,9 @@ function saveRosterEntry(entry) {
         if (String(data[i][col.id]) === String(entry.id)) {
           sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
           sortRosterSheet(sheet);
+          if (col.time !== undefined && sheet.getLastRow() > 1) {
+            sheet.getRange(2, col.time + 1, sheet.getLastRow() - 1, 1).setNumberFormat('@');
+          }
           return { success: true };
         }
       }
@@ -191,6 +194,9 @@ function saveRosterEntry(entry) {
     }
 
     sortRosterSheet(sheet);
+    if (col.time !== undefined && sheet.getLastRow() > 1) {
+      sheet.getRange(2, col.time + 1, sheet.getLastRow() - 1, 1).setNumberFormat('@');
+    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -251,6 +257,10 @@ function saveRosterEntries(entries) {
     });
 
     sortRosterSheet(sheet);
+    // Re-apply plain-text format to the time column so Sheets never auto-converts 'HH:mm' back to a fraction.
+    if (col.time !== undefined && sheet.getLastRow() > 1) {
+      sheet.getRange(2, col.time + 1, sheet.getLastRow() - 1, 1).setNumberFormat('@');
+    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -458,9 +468,10 @@ function _formatRosterSheet(ss) {
   // --- Time: header note + plain-text format (prevents Sheets auto-converting "18:30" to a time fraction) ---
   if (col.time !== undefined) {
     sheet.getRange(1, col.time + 1).setNote('24-hour format, e.g. 18:30 for 6:30 PM. Leave blank if no fixed time.');
-    const timeDataRows = sheet.getLastRow() - 1;
-    if (timeDataRows > 0) {
-      sheet.getRange(2, col.time + 1, timeDataRows, 1).setNumberFormat('@');
+    // Apply to entire column (not just existing rows) so new rows never auto-convert 'HH:mm' to a fraction.
+    const timeMaxRows = sheet.getMaxRows() - 1;
+    if (timeMaxRows > 0) {
+      sheet.getRange(2, col.time + 1, timeMaxRows, 1).setNumberFormat('@');
     }
   }
 
