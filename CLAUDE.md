@@ -97,9 +97,9 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
 | v1.13.0 | Reordered columns for human readability: Time → col D, Ice Breaker → col I | `migrateSchemaToV113()` |
 | v1.16.0 | Added Can Drive (col I) to Members tab | `migrateSchemaToV116()` |
-| v1.17.0 | Added Older Sunday School member type; added 17 Older SS members via seeder | `importOlderSSMembers()` |
-| v1.17.1 | Kept Harvest member type; added 6 JAG1 Harvest members via seeder; role toggles disabled for Harvest/Older SS in edit form | `importHarvestMembers()` |
-| v1.18.0 | Fixed time timezone bug (UTC+8 Perth shifted 18:30→02:30); batch save for performance; Time column set to plain text | `fixTimeValues()` (data fix, not schema) |
+| v1.17.0 | Added Older Sunday School member type; added 17 Older SS members via seeder | `importOlderSSMembers()` ✓ deleted |
+| v1.17.1 | Kept Harvest member type; added 6 JAG1 Harvest members via seeder; role toggles disabled for Harvest/Older SS in edit form | `importHarvestMembers()` ✓ deleted |
+| v1.18.0 | Fixed time timezone bug (UTC+8 Perth shifted 18:30→02:30); batch save for performance; Time column set to plain text | `fixTimeValues()` ✓ deleted |
 
 ### Current schema (v1.13.0, 14 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |

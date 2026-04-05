@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.18.1 (2026-03-31)
+// Version: 1.18.2 (2026-04-05)
 // ============================================================
 
-const VERSION      = '1.18.1';
-const VERSION_DATE = '2026-03-31';
+const VERSION      = '1.18.2';
+const VERSION_DATE = '2026-04-05';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
@@ -257,36 +257,6 @@ function saveRosterEntries(entries) {
   }
 }
 
-// ---- One-time fix: convert Time column from time-fraction to plain HH:mm text ----
-// Run ONCE from Apps Script editor if times displayed incorrectly after updating.
-// Then run formatSheets(). Delete this function after confirming.
-function fixTimeValues() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
-  if (!sheet || sheet.getLastRow() <= 1) { Logger.log('Nothing to fix.'); return; }
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const col = _rosterColMap(headers);
-  if (col.time === undefined) { Logger.log('Time column not found.'); return; }
-
-  const lastRow    = sheet.getLastRow();
-  const timeColNum = col.time + 1;
-  const timeRange  = sheet.getRange(2, timeColNum, lastRow - 1, 1);
-  const vals = timeRange.getValues();
-  let converted = 0;
-  const fixed = vals.map(function(row) {
-    const v = row[0];
-    if (v instanceof Date) {
-      converted++;
-      return [Utilities.formatDate(v, 'UTC', 'HH:mm')];
-    }
-    return [String(v || '')];
-  });
-  timeRange.setNumberFormat('@');
-  timeRange.setValues(fixed);
-  Logger.log('fixTimeValues: converted ' + converted + ' time value(s) to HH:mm text. Delete this function after confirming.');
-}
-
 function deleteRosterEntry(rowIndex) {
   try {
     SpreadsheetApp.openById(SPREADSHEET_ID)
@@ -424,60 +394,6 @@ function migrateSchemaToV116() {
   const newCol = sheet.getLastColumn() + 1;
   sheet.getRange(1, newCol).setValue('Can Drive');
   Logger.log('Added Can Drive column at position ' + newCol + '. Run formatSheets() to apply checkbox formatting.');
-}
-
-// ---- One-time import: Older Sunday School members ----
-// Run ONCE from the Apps Script editor, then DELETE this function.
-function importOlderSSMembers() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
-  if (!sheet) { Logger.log('Members sheet not found.'); return; }
-
-  const names = [
-    'Anne-Grace', 'Averley', 'Chelsea', 'Chloe', 'Emma', 'Ethan', 'Faris',
-    'Grace', 'James Wijaya', 'Josiah', 'Judith', 'Kaitlyn', 'Lukas',
-    'Magdalene', 'Oliver', 'Tiana', 'Timothy'
-  ];
-
-  const existing = sheet.getDataRange().getValues().slice(1)
-    .map(function(r) { return String(r[0]).toLowerCase().trim(); });
-
-  let added = 0;
-  names.forEach(function(name) {
-    if (!existing.includes(name.toLowerCase().trim())) {
-      // [Name, Group, Organise, P&W, Facilitate, Report, Active, RoleType, Drive]
-      sheet.appendRow([name, 'Both', false, false, false, false, true, 'Older Sunday School', false]);
-      added++;
-    } else {
-      Logger.log('Skipped (already exists): ' + name);
-    }
-  });
-  Logger.log('importOlderSSMembers: added ' + added + ' member(s). Delete this function after confirming.');
-}
-
-// ---- One-time import: Harvest members (JAG1) ----
-// Run ONCE from the Apps Script editor, then DELETE this function.
-function importHarvestMembers() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
-  if (!sheet) { Logger.log('Members sheet not found.'); return; }
-
-  const names = ['James Han', 'Cherry', 'Marko', 'Samyar', 'Samira', 'Ava'];
-
-  const existing = sheet.getDataRange().getValues().slice(1)
-    .map(function(r) { return String(r[0]).toLowerCase().trim(); });
-
-  let added = 0;
-  names.forEach(function(name) {
-    if (!existing.includes(name.toLowerCase().trim())) {
-      // [Name, Group, Organise, P&W, Facilitate, Report, Active, RoleType, Drive]
-      sheet.appendRow([name, 'JAG1', false, false, false, false, true, 'Harvest', false]);
-      added++;
-    } else {
-      Logger.log('Skipped (already exists): ' + name);
-    }
-  });
-  Logger.log('importHarvestMembers: added ' + added + ' member(s). Delete this function after confirming.');
 }
 
 // ---- Sheet Formatting ----
