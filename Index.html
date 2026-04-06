@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.21.0 (2026-04-06) -->
+  <!-- Version: 1.21.1 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -201,6 +201,7 @@ let dashFuture = 4;   // how many future weeks shown in dashboard
 let _dashBusy  = false;
 let _scheduleDatesCache = null;  // D: invalidated whenever allEntries changes
 let _dupFirstNamesCache = null;  // F: invalidated whenever allMembers changes
+let _loadGen = 0;               // incremented on each loadData() call; stale responses are discarded
 
 // =============================================
 // Init
@@ -230,8 +231,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function loadData() {
   // A: version is now included in the getAllData() response — no separate getVersion() call needed
+  // Increment generation so any in-flight response from a previous loadData() call is discarded.
+  const gen = ++_loadGen;
   google.script.run
     .withSuccessHandler(function(data) {
+      if (gen !== _loadGen) return;  // stale response — a newer loadData() already fired
       allEntries = data.entries || [];
       allMembers = data.members || [];
       _scheduleDatesCache = null;  // D: invalidate on fresh data
@@ -245,7 +249,9 @@ function loadData() {
       renderView();
     })
     .withFailureHandler(function(err) {
-      document.getElementById('loading-msg').textContent = 'Error loading data: ' + err.message;
+      if (gen !== _loadGen) return;
+      const loadingEl = document.getElementById('loading-msg');
+      if (loadingEl) loadingEl.textContent = 'Error loading data: ' + err.message;
     })
     .getAllData();
 }
