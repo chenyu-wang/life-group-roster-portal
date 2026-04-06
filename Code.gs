@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.21.2 (2026-04-06)
+// Version: 1.22.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.21.2';
+const VERSION      = '1.22.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -320,6 +320,38 @@ function sortRosterSheet(sheet) {
     { column: 1, ascending: true },
     { column: 2, ascending: true }
   ]);
+}
+
+// ---- Utility: Rebuild Last Updated Column ----
+// Run ONCE to reset col M (Last Updated) to a clean datetime column.
+// Clears any stale content/format from data rows, re-writes the header, and applies
+// the correct datetime format. Run formatSheets() afterwards to restore banding.
+function rebuildLastUpdatedColumn() {
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+  if (!sheet) { Logger.log('Roster sheet not found.'); return; }
+
+  const headerRow    = 2;   // post-migration: headers in row 2
+  const dataStartRow = 3;
+  const targetCol    = 13;  // col M (1-indexed)
+  const lastRow      = sheet.getLastRow();
+
+  // Ensure header says 'Last Updated'
+  sheet.getRange(headerRow, targetCol).setValue('Last Updated');
+
+  // Clear all stale content + formatting from data rows, then apply datetime format
+  if (lastRow >= dataStartRow) {
+    const dataRange = sheet.getRange(dataStartRow, targetCol, lastRow - dataStartRow + 1, 1);
+    dataRange.clearContent();
+    dataRange.clearFormat();
+    dataRange.setNumberFormat('dd/mm/yyyy hh:mm');
+  }
+
+  // Match column width from _formatRosterSheet
+  sheet.setColumnWidth(targetCol, 145);
+
+  SpreadsheetApp.flush();
+  Logger.log('Last Updated column (col M) rebuilt. Run formatSheets() to restore banding.');
 }
 
 // ---- Sheet Formatting ----

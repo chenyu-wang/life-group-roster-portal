@@ -104,8 +104,11 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.20.0 | Fix Members sheet ghost rows (Older SS/Harvest at row 1001+) | `fixMembersSheetGhostRows()` ✓ deleted |
 | v1.20.1 | Notice row inserted as row 1; column headers in row 2; data from row 3 | `migrateSchemaToV121()` ✓ deleted |
 | v1.21.0 | Added Sunday School as a valid Members Group; no schema change (dropdown-only) | n/a |
+| v1.21.1 | Fixed stale loadData() race condition wiping updatedAt display after save | n/a |
+| v1.21.2 | Added SpreadsheetApp.flush() before sortRosterSheet so getLastColumn() sees col M | n/a |
+| v1.22.0 | Rebuild Last Updated col M: clear stale content/format, re-apply dd/mm/yyyy hh:mm | `rebuildLastUpdatedColumn()` |
 
-### Current schema (v1.21.0, 13 columns — Roster tab)
+### Current schema (v1.22.0, 13 columns — Roster tab)
 > Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
