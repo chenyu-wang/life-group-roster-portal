@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.23.0 (2026-04-06)
+// Version: 1.24.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.23.0';
+const VERSION      = '1.24.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -160,6 +160,16 @@ function saveRosterEntry(entry) {
     const col          = _rosterColMap(data[headerRowIdx]);
     const numCols      = data[headerRowIdx].length;
 
+    // Sort only when the row order can change: new row or date edited.
+    const needsSort = !entry.rowIndex || (function() {
+      const oldCell = data[entry.rowIndex - 1] && data[entry.rowIndex - 1][col.date];
+      if (!oldCell) return true;
+      const old = new Date(oldCell);
+      return old.getFullYear() !== dateObj.getFullYear() ||
+             old.getMonth()    !== dateObj.getMonth()    ||
+             old.getDate()     !== dateObj.getDate();
+    })();
+
     const rowData = new Array(numCols).fill('');
     const s = function(key, val) { if (col[key] !== undefined) rowData[col[key]] = val; };
     s('date',        dateObj);
@@ -183,7 +193,7 @@ function saveRosterEntry(entry) {
     }
 
     SpreadsheetApp.flush(); // commit writes before sort so getLastColumn() sees col M
-    sortRosterSheet(sheet);
+    if (needsSort) sortRosterSheet(sheet);
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -202,6 +212,19 @@ function saveRosterEntries(entries) {
     const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
     const col          = _rosterColMap(data[headerRowIdx]);
     const numCols      = data[headerRowIdx].length;
+
+    // Sort only when the row order can change: any new row or any entry with a changed date.
+    const needsSort = entries.some(function(entry) {
+      if (!entry.rowIndex) return true;
+      const dp      = entry.date.split('-');
+      const newDate = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]));
+      const oldCell = data[entry.rowIndex - 1] && data[entry.rowIndex - 1][col.date];
+      if (!oldCell) return true;
+      const old = new Date(oldCell);
+      return old.getFullYear() !== newDate.getFullYear() ||
+             old.getMonth()    !== newDate.getMonth()    ||
+             old.getDate()     !== newDate.getDate();
+    });
 
     entries.forEach(function(entry) {
       const dp      = entry.date.split('-');
@@ -230,7 +253,7 @@ function saveRosterEntries(entries) {
     });
 
     SpreadsheetApp.flush(); // commit writes before sort so getLastColumn() sees col M
-    sortRosterSheet(sheet);
+    if (needsSort) sortRosterSheet(sheet);
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };

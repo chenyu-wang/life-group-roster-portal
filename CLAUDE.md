@@ -108,8 +108,9 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.21.2 | Added SpreadsheetApp.flush() before sortRosterSheet so getLastColumn() sees col M | n/a |
 | v1.22.0 | Rebuild Last Updated col M: clear stale content/format, re-apply dd/mm/yyyy hh:mm | `rebuildLastUpdatedColumn()` |
 | v1.23.0 | Performance: remove per-save setNumberFormat('@') from saves (formatSheets() covers it); fix Cancelled/Replaced optimistic cache; fix member save/delete optimistic cache | n/a |
+| v1.24.0 | Performance: skip sortRosterSheet() when no date changed and no new row added | n/a |
 
-### Current schema (v1.23.0, 13 columns — Roster tab)
+### Current schema (v1.24.0, 13 columns — Roster tab)
 > Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
