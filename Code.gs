@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.18.6 (2026-04-06)
+// Version: 1.19.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.18.6';
+const VERSION      = '1.19.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -27,9 +27,13 @@ function getVersion() {
 // ---- Data Fetching ----
 
 function getAllData() {
+  // B: open spreadsheet once and share it — avoids two separate openById calls
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   return {
-    entries: getRosterEntries(),
-    members: getMembers()
+    entries:     getRosterEntries(ss),
+    members:     getMembers(ss),
+    version:     VERSION,      // A: version piggybacked on the data call — eliminates getVersion() round-trip
+    versionDate: VERSION_DATE
   };
 }
 
@@ -59,9 +63,8 @@ function _rosterColMap(headers) {
   return m;
 }
 
-function getRosterEntries() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+function getRosterEntries(ss) {
+  const sheet = (ss || SpreadsheetApp.openById(SPREADSHEET_ID)).getSheetByName(ROSTER_SHEET_NAME);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
   const data = sheet.getDataRange().getValues();
@@ -104,9 +107,8 @@ function getRosterEntries() {
   return entries;
 }
 
-function getMembers() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
+function getMembers(ss) {
+  const sheet = (ss || SpreadsheetApp.openById(SPREADSHEET_ID)).getSheetByName(MEMBERS_SHEET_NAME);
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
   const data = sheet.getDataRange().getValues();
@@ -156,9 +158,11 @@ function saveRosterEntry(entry) {
     const col     = _rosterColMap(data[0]);
     const numCols = data[0].length;
 
-    // Apply @-format BEFORE writing so 'HH:mm' is stored as text, not converted to a fraction.
+    // C: Apply @-format BEFORE writing. Range = current data rows + 50 row buffer (covers
+    // appendRow for new entries without formatting the entire 1000-row sheet every save).
     if (col.time !== undefined) {
-      sheet.getRange(2, col.time + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+      const fmtRows = Math.min(sheet.getMaxRows() - 1, sheet.getLastRow() + 50);
+      if (fmtRows > 0) sheet.getRange(2, col.time + 1, fmtRows, 1).setNumberFormat('@');
     }
 
     const rowData = new Array(numCols).fill('');
@@ -215,12 +219,12 @@ function saveRosterEntries(entries) {
     const col     = _rosterColMap(data[0]);
     const numCols = data[0].length;
 
-    // Apply @-format on the entire time column BEFORE any writes.
-    // This must happen first: if Sheets receives 'HH:mm' in a non-@ cell it auto-converts to a
-    // time fraction; applying @ afterwards makes getValues() return a plain Number (not a Date),
-    // bypassing the UTC read-fix and corrupting the displayed time.
+    // C: Apply @-format BEFORE any writes. Range = current data rows + 50 row buffer.
+    // Must happen before writes: Sheets auto-converts 'HH:mm' strings to fractions if the
+    // cell format isn't already @; applying @ after the write corrupts the stored value.
     if (col.time !== undefined) {
-      sheet.getRange(2, col.time + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+      const fmtRows = Math.min(sheet.getMaxRows() - 1, sheet.getLastRow() + 50);
+      if (fmtRows > 0) sheet.getRange(2, col.time + 1, fmtRows, 1).setNumberFormat('@');
     }
 
     entries.forEach(function(entry) {

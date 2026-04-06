@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.18.6 (2026-04-06) -->
+  <!-- Version: 1.19.0 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -199,6 +199,8 @@ let editingMember  = null;
 let dashPast   = 4;   // how many past weeks shown in dashboard
 let dashFuture = 4;   // how many future weeks shown in dashboard
 let _dashBusy  = false;
+let _scheduleDatesCache = null;  // D: invalidated whenever allEntries changes
+let _dupFirstNamesCache = null;  // F: invalidated whenever allMembers changes
 
 // =============================================
 // Init
@@ -227,25 +229,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function loadData() {
+  // A: version is now included in the getAllData() response — no separate getVersion() call needed
   google.script.run
     .withSuccessHandler(function(data) {
       allEntries = data.entries || [];
       allMembers = data.members || [];
+      _scheduleDatesCache = null;  // D: invalidate on fresh data
+      _dupFirstNamesCache  = null;  // F: invalidate on fresh data
       const loadingEl = document.getElementById('loading-msg');
       if (loadingEl) loadingEl.remove();
+      if (data.version) {
+        const el = document.getElementById('header-sub');
+        if (el) el.textContent = 'v' + data.version;
+      }
       renderView();
     })
     .withFailureHandler(function(err) {
       document.getElementById('loading-msg').textContent = 'Error loading data: ' + err.message;
     })
     .getAllData();
-
-  google.script.run
-    .withSuccessHandler(function(v) {
-      const el = document.getElementById('header-sub');
-      if (el) el.textContent = 'v' + v.version;
-    })
-    .getVersion();
 }
 
 function today() {
@@ -270,6 +272,7 @@ function _mergeEntriesIntoCache(savedEntries) {
     if (idx >= 0) allEntries[idx] = Object.assign({}, allEntries[idx], saved);
     else allEntries.push(saved);
   });
+  _scheduleDatesCache = null;
 }
 
 function finishSave(msg) {
@@ -317,11 +320,21 @@ function renderView() {
 // =============================================
 // Helpers: display name + relative time
 // =============================================
+function _getDupFirstNames() {
+  if (_dupFirstNamesCache) return _dupFirstNamesCache;
+  const seen = new Set();
+  _dupFirstNamesCache = new Set();
+  allMembers.filter(m => m.active).forEach(m => {
+    const first = m.name.split(' ')[0];
+    if (seen.has(first)) _dupFirstNamesCache.add(first);
+    else seen.add(first);
+  });
+  return _dupFirstNamesCache;
+}
 function displayName(fullName) {
   if (!fullName || fullName === '') return 'TBC';
   const first = fullName.split(' ')[0];
-  const dup = allMembers.some(m => m.active && m.name !== fullName && m.name.split(' ')[0] === first);
-  return dup ? fullName : first;
+  return _getDupFirstNames().has(first) ? fullName : first;
 }
 
 function resolveDisplayName(val) {
@@ -376,6 +389,12 @@ function renderHome(resetWindow) {
     c.appendChild(tip);
   }
 
+  const entriesByDate = new Map();
+  allEntries.forEach(e => {
+    if (!entriesByDate.has(e.date)) entriesByDate.set(e.date, []);
+    entriesByDate.get(e.date).push(e);
+  });
+
   let shownYear = null;
   fridays.slice(startIdx, endIdx + 1).forEach(friday => {
     // Year heading when year changes
@@ -391,7 +410,7 @@ function renderHome(resetWindow) {
     const dateStr    = toISODate(friday);
     const isUpcoming = dateStr === upcomingDateStr;
     const isPast     = friday < todayDate;
-    const dayEntries = allEntries.filter(e => e.date === dateStr);
+    const dayEntries = entriesByDate.get(dateStr) || [];
 
     let card;
     if (dayEntries.length > 0) {
@@ -1343,6 +1362,7 @@ function getFridaysRange() {
 
 // All Fridays in range + any non-Friday entry dates (for ad-hoc gatherings)
 function getScheduleDates() {
+  if (_scheduleDatesCache) return _scheduleDatesCache;
   const allFridays = getFridaysRange();
   const fridaySet  = new Set(allFridays.map(toISODate));
   const allDates   = [...allFridays];
@@ -1353,7 +1373,8 @@ function getScheduleDates() {
       fridaySet.add(e.date);
     }
   });
-  return allDates.sort((a,b) => a - b);
+  _scheduleDatesCache = allDates.sort((a,b) => a - b);
+  return _scheduleDatesCache;
 }
 
 function formatTime(timeStr) {
