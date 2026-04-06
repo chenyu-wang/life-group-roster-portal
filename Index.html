@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.22.0 (2026-04-06) -->
+  <!-- Version: 1.23.0 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -938,12 +938,13 @@ function submitForm() {
         rowIndex: ex.rowIndex || null,
         date, group: grp, eventType,
         venue: '', organiser: '', pw: '', facilitator: '', food: '', reporting: '',
-        notes: sharedNote,
-        time:  val('f-time') || ''
+        notes: sharedNote, iceBreaker: '',
+        time:  val('f-time') || '',
+        updatedAt: new Date().toISOString()
       };
     });
     google.script.run
-      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } finishSave('Saved!'); })
+      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSave); finishSave('Saved!'); })
       .withFailureHandler(e => showToast('Error: '+e.message))
       .saveRosterEntries(toSave);
     return;
@@ -1211,8 +1212,18 @@ function submitMember() {
       if (!result.success) { showToast('Error: ' + result.error); return; }
       showToast('Member saved');
       closeModal();
-      loadData();
+      // Optimistic cache update so members view renders immediately
+      if (member.rowIndex) {
+        const idx = allMembers.findIndex(function(m) { return m.rowIndex === member.rowIndex; });
+        if (idx >= 0) allMembers[idx] = Object.assign({}, allMembers[idx], member);
+        else allMembers.push(member);
+      } else {
+        allMembers.push(member);
+      }
+      _dupFirstNamesCache = null;
       currentView = 'members';
+      renderMembers();
+      loadData(); // refresh in background to get correct rowIndex for new members
     })
     .withFailureHandler(err => showToast('Error: ' + err.message))
     .saveMember(member);
@@ -1236,8 +1247,12 @@ function deleteMemberRow(rowIndex) {
     .withSuccessHandler(function(result) {
       if (!result.success) { showToast('Error: ' + result.error); return; }
       showToast('Member removed');
-      loadData();
+      // Optimistic cache update so members view reflects deletion immediately
+      allMembers = allMembers.filter(function(m) { return m.rowIndex !== rowIndex; });
+      _dupFirstNamesCache = null;
       currentView = 'members';
+      renderMembers();
+      loadData(); // refresh in background to sync rowIndices
     })
     .withFailureHandler(err => showToast('Error: ' + err.message))
     .deleteMember(rowIndex);

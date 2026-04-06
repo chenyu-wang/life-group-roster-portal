@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.22.0 (2026-04-06)
+// Version: 1.23.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.22.0';
+const VERSION      = '1.23.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -160,13 +160,6 @@ function saveRosterEntry(entry) {
     const col          = _rosterColMap(data[headerRowIdx]);
     const numCols      = data[headerRowIdx].length;
 
-    // C: Apply @-format BEFORE writing. Range = current data rows + 50 row buffer (covers
-    // appendRow for new entries without formatting the entire 1000-row sheet every save).
-    if (col.time !== undefined) {
-      const fmtRows = Math.min(sheet.getMaxRows() - 1, sheet.getLastRow() + 50);
-      if (fmtRows > 0) sheet.getRange(2, col.time + 1, fmtRows, 1).setNumberFormat('@');
-    }
-
     const rowData = new Array(numCols).fill('');
     const s = function(key, val) { if (col[key] !== undefined) rowData[col[key]] = val; };
     s('date',        dateObj);
@@ -209,14 +202,6 @@ function saveRosterEntries(entries) {
     const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
     const col          = _rosterColMap(data[headerRowIdx]);
     const numCols      = data[headerRowIdx].length;
-
-    // C: Apply @-format BEFORE any writes. Range = current data rows + 50 row buffer.
-    // Must happen before writes: Sheets auto-converts 'HH:mm' strings to fractions if the
-    // cell format isn't already @; applying @ after the write corrupts the stored value.
-    if (col.time !== undefined) {
-      const fmtRows = Math.min(sheet.getMaxRows() - 1, sheet.getLastRow() + 50);
-      if (fmtRows > 0) sheet.getRange(2, col.time + 1, fmtRows, 1).setNumberFormat('@');
-    }
 
     entries.forEach(function(entry) {
       const dp      = entry.date.split('-');
