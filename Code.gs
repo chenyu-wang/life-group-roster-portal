@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.18.3 (2026-04-05)
+// Version: 1.18.4 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.18.3';
-const VERSION_DATE = '2026-04-05';
+const VERSION      = '1.18.4';
+const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
@@ -155,6 +155,12 @@ function saveRosterEntry(entry) {
     const data    = sheet.getDataRange().getValues();
     const col     = _rosterColMap(data[0]);
     const numCols = data[0].length;
+
+    // Apply @-format BEFORE writing so 'HH:mm' is stored as text, not converted to a fraction.
+    if (col.time !== undefined) {
+      sheet.getRange(2, col.time + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+    }
+
     const rowData = new Array(numCols).fill('');
     const s = function(key, val) { if (col[key] !== undefined) rowData[col[key]] = val; };
     s('date',        dateObj);
@@ -178,9 +184,6 @@ function saveRosterEntry(entry) {
         if (String(data[i][col.id]) === String(entry.id)) {
           sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
           sortRosterSheet(sheet);
-          if (col.time !== undefined && sheet.getLastRow() > 1) {
-            sheet.getRange(2, col.time + 1, sheet.getLastRow() - 1, 1).setNumberFormat('@');
-          }
           return { success: true };
         }
       }
@@ -194,9 +197,6 @@ function saveRosterEntry(entry) {
     }
 
     sortRosterSheet(sheet);
-    if (col.time !== undefined && sheet.getLastRow() > 1) {
-      sheet.getRange(2, col.time + 1, sheet.getLastRow() - 1, 1).setNumberFormat('@');
-    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };
@@ -214,6 +214,14 @@ function saveRosterEntries(entries) {
     const data    = sheet.getDataRange().getValues();
     const col     = _rosterColMap(data[0]);
     const numCols = data[0].length;
+
+    // Apply @-format on the entire time column BEFORE any writes.
+    // This must happen first: if Sheets receives 'HH:mm' in a non-@ cell it auto-converts to a
+    // time fraction; applying @ afterwards makes getValues() return a plain Number (not a Date),
+    // bypassing the UTC read-fix and corrupting the displayed time.
+    if (col.time !== undefined) {
+      sheet.getRange(2, col.time + 1, sheet.getMaxRows() - 1, 1).setNumberFormat('@');
+    }
 
     entries.forEach(function(entry) {
       const dp      = entry.date.split('-');
@@ -257,10 +265,6 @@ function saveRosterEntries(entries) {
     });
 
     sortRosterSheet(sheet);
-    // Re-apply plain-text format to the time column so Sheets never auto-converts 'HH:mm' back to a fraction.
-    if (col.time !== undefined && sheet.getLastRow() > 1) {
-      sheet.getRange(2, col.time + 1, sheet.getLastRow() - 1, 1).setNumberFormat('@');
-    }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.toString() };

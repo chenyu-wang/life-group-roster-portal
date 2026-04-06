@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.18.3 (2026-04-05) -->
+  <!-- Version: 1.18.4 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -618,8 +618,8 @@ function renderAdd(prefillDate) {
           <input type="date" id="f-date" value="${defaultDate}" onchange="onDateChange(this.value)" ${isEdit ? 'readonly style="background:#f8fafc;"' : ''} />
         </div>
         <div class="field">
-          <label>Time</label>
-          <input type="time" id="f-time" value="${defaultTime}" style="background:#fff;color:#1e293b;" />
+          <label>Time (24h, e.g. 18:30)</label>
+          <input type="text" id="f-time" value="${defaultTime}" placeholder="e.g. 18:30" inputmode="numeric" style="background:#fff;color:#1e293b;" />
         </div>
       </div>
 
