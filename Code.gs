@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.20.2 (2026-04-06)
+// Version: 1.20.3 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.20.2';
+const VERSION      = '1.20.3';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -486,21 +486,14 @@ function _formatRosterSheet(ss) {
   // --- Freeze: notice row + header row if post-migration, otherwise just header row ---
   sheet.setFrozenRows(hasNoticeRow ? 2 : 1);
 
-  // --- Date: readable format ---
-  if (col.date !== undefined) {
-    sheet.getRange(dataStartRow, col.date + 1, dataRows, 1).setNumberFormat('ddd dd/mm/yyyy');
-  }
-
-  // --- Last Updated: datetime format + note ---
+  // --- Last Updated: header note ---
   if (col.updatedAt !== undefined) {
-    sheet.getRange(dataStartRow, col.updatedAt + 1, dataRows, 1).setNumberFormat('dd/mm/yyyy hh:mm');
     sheet.getRange(headerRow, col.updatedAt + 1).setNote('Auto-stamped by the app on every save. Do not edit manually.');
   }
 
-  // --- Time: header note + plain-text format (prevents Sheets auto-converting "18:30" to a time fraction) ---
+  // --- Time: header note ---
   if (col.time !== undefined) {
     sheet.getRange(headerRow, col.time + 1).setNote('24-hour format, e.g. 18:30 for 6:30 PM. Leave blank if no fixed time.');
-    if (dataRows > 0) sheet.getRange(dataStartRow, col.time + 1, dataRows, 1).setNumberFormat('@');
   }
 
   // --- Group: dropdown validation ---
@@ -519,15 +512,22 @@ function _formatRosterSheet(ss) {
   }
 
   // --- Alternating row colours ---
-  // Clear any explicit cell backgrounds first — explicit backgrounds take precedence over banding,
-  // so previous formatSheets() runs can leave stale backgrounds that override the banding colour.
+  // clearFormat() removes ALL explicit cell formatting (backgrounds, number formats, fonts) so
+  // banding applies uniformly across every column. Number formats are re-applied after banding.
   sheet.getBandings().forEach(function(b) { b.remove(); });
   if (dataColCount > 0) {
-    sheet.getRange(dataStartRow, 1, dataRows, dataColCount).setBackground(null);
+    sheet.getRange(dataStartRow, 1, dataRows, dataColCount).clearFormat();
     sheet.getRange(dataStartRow, 1, dataRows, dataColCount)
       .applyRowBanding()
       .setFirstRowColor('#f5f3ff')
       .setSecondRowColor('#ffffff');
+    // Re-apply number formats after clearFormat() wiped them
+    if (col.date !== undefined)
+      sheet.getRange(dataStartRow, col.date + 1, dataRows, 1).setNumberFormat('ddd dd/mm/yyyy');
+    if (col.updatedAt !== undefined)
+      sheet.getRange(dataStartRow, col.updatedAt + 1, dataRows, 1).setNumberFormat('dd/mm/yyyy hh:mm');
+    if (col.time !== undefined && dataRows > 0)
+      sheet.getRange(dataStartRow, col.time + 1, dataRows, 1).setNumberFormat('@');
   }
 
   // --- Portal notice ---
@@ -623,7 +623,7 @@ function _formatMembersSheet(ss) {
 
   // --- Alternating row colours ---
   sheet.getBandings().forEach(function(b) { b.remove(); });
-  sheet.getRange(dataStartRow, 1, dataRows, DATA_COL_COUNT).setBackground(null);
+  sheet.getRange(dataStartRow, 1, dataRows, DATA_COL_COUNT).clearFormat();
   sheet.getRange(dataStartRow, 1, dataRows, DATA_COL_COUNT)
     .applyRowBanding()
     .setFirstRowColor('#f5f3ff')

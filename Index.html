@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.20.2 (2026-04-06) -->
+  <!-- Version: 1.20.3 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -958,7 +958,7 @@ function submitForm() {
     const groups   = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
     const toSaveS  = groups.map(grp => {
       const existing = editingEntries.find(e => e.group === grp);
-      return { rowIndex: existing ? existing.rowIndex : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time };
+      return { rowIndex: existing ? existing.rowIndex : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time, updatedAt: new Date().toISOString() };
     });
     google.script.run
       .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSaveS); finishSave('Saved!'); })
@@ -991,7 +991,8 @@ function submitForm() {
       reporting:   resolveDisplayName(sharedRep    ?? val(grp + '-reporting')),
       notes:       sharedNotes  ?? val(grp + '-notes'),
       iceBreaker:  resolveDisplayName(val('shared-iceBreaker')),
-      time:        val('f-time') || ''
+      time:        val('f-time') || '',
+      updatedAt:   new Date().toISOString()
     };
   });
 
