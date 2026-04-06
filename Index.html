@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.19.0 (2026-04-06) -->
+  <!-- Version: 1.20.0 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -266,9 +266,7 @@ function setActiveNav(view) {
 
 function _mergeEntriesIntoCache(savedEntries) {
   savedEntries.forEach(function(saved) {
-    const idx = saved.id
-      ? allEntries.findIndex(function(e) { return e.id === saved.id; })
-      : allEntries.findIndex(function(e) { return e.date === saved.date && e.group === saved.group; });
+    const idx = allEntries.findIndex(function(e) { return e.date === saved.date && e.group === saved.group; });
     if (idx >= 0) allEntries[idx] = Object.assign({}, allEntries[idx], saved);
     else allEntries.push(saved);
   });
@@ -932,7 +930,6 @@ function submitForm() {
       const ex = editingEntries.find(e => e.group === grp) || {};
       return {
         rowIndex: ex.rowIndex || null,
-        id:       ex.id       || null,
         date, group: grp, eventType,
         venue: '', organiser: '', pw: '', facilitator: '', food: '', reporting: '',
         notes: sharedNote,
@@ -961,7 +958,7 @@ function submitForm() {
     const groups   = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
     const toSaveS  = groups.map(grp => {
       const existing = editingEntries.find(e => e.group === grp);
-      return { rowIndex: existing ? existing.rowIndex : null, id: existing ? existing.id : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time };
+      return { rowIndex: existing ? existing.rowIndex : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time };
     });
     google.script.run
       .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSaveS); finishSave('Saved!'); })
@@ -985,7 +982,6 @@ function submitForm() {
     const existing = editingEntries.find(e => e.group === grp);
     return {
       rowIndex:    existing ? existing.rowIndex : null,
-      id:          existing ? existing.id       : null,
       date, group: grp, eventType,
       venue:       sharedVenue  ?? val(grp + '-venue'),
       organiser:   resolveDisplayName(val(grp + '-organiser')),

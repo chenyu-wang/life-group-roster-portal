@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.19.0 (2026-04-06)
+// Version: 1.20.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.19.0';
+const VERSION      = '1.20.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -57,7 +57,6 @@ function _rosterColMap(headers) {
       case 'ice breaker':      m.iceBreaker = i;  break;
       case 'last updated':     m.updatedAt = i;   break;
       case 'time':             m.time = i;        break;
-      case 'event id':         m.id   = i;        break;
     }
   });
   return m;
@@ -99,8 +98,7 @@ function getRosterEntries(ss) {
       notes:       String(g(row, 'notes')       || ''),
       iceBreaker:  String(g(row, 'iceBreaker')  || ''),
       updatedAt:   rawUpdatedAt ? Utilities.formatDate(new Date(rawUpdatedAt), tz, "yyyy-MM-dd'T'HH:mm:ss") : '',
-      time:        timeStr,
-      id:          String(g(row, 'id')          || '')
+      time:        timeStr
     });
   }
 
@@ -149,9 +147,7 @@ function saveRosterEntry(entry) {
       parseInt(dateParts[2])
     );
 
-    const entryId = entry.id || Utilities.getUuid();
-
-    // Read sheet once: serves both header mapping and ID lookup.
+    // Read sheet once: serves both header mapping and row write.
     // Building rowData by column position makes writes column-order agnostic —
     // reordering columns in the sheet never breaks saves.
     const data    = sheet.getDataRange().getValues();
@@ -180,20 +176,7 @@ function saveRosterEntry(entry) {
     s('iceBreaker',  entry.iceBreaker  || '');
     s('updatedAt',   new Date());
     s('time',        entry.time        || '');
-    s('id',          entryId);
 
-    // Prefer ID-based lookup for reliable editing
-    if (entry.id && col.id !== undefined) {
-      for (let i = 1; i < data.length; i++) {
-        if (String(data[i][col.id]) === String(entry.id)) {
-          sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
-          sortRosterSheet(sheet);
-          return { success: true };
-        }
-      }
-    }
-
-    // Fall back to rowIndex (for rows without an ID yet) or append new
     if (entry.rowIndex) {
       sheet.getRange(entry.rowIndex, 1, 1, numCols).setValues([rowData]);
     } else {
@@ -230,7 +213,6 @@ function saveRosterEntries(entries) {
     entries.forEach(function(entry) {
       const dp      = entry.date.split('-');
       const dateObj = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]));
-      const entryId = entry.id || Utilities.getUuid();
       const rowData = new Array(numCols).fill('');
       const s = function(key, v) { if (col[key] !== undefined) rowData[col[key]] = v; };
       s('date',        dateObj);
@@ -246,25 +228,11 @@ function saveRosterEntries(entries) {
       s('iceBreaker',  entry.iceBreaker  || '');
       s('updatedAt',   new Date());
       s('time',        entry.time        || '');
-      s('id',          entryId);
 
-      let found = false;
-      if (entry.id && col.id !== undefined) {
-        for (let i = 1; i < data.length; i++) {
-          if (String(data[i][col.id]) === String(entry.id)) {
-            sheet.getRange(i + 1, 1, 1, numCols).setValues([rowData]);
-            data[i] = rowData; // keep local copy fresh for subsequent entries
-            found = true;
-            break;
-          }
-        }
-      }
-      if (!found) {
-        if (entry.rowIndex) {
-          sheet.getRange(entry.rowIndex, 1, 1, numCols).setValues([rowData]);
-        } else {
-          sheet.appendRow(rowData);
-        }
+      if (entry.rowIndex) {
+        sheet.getRange(entry.rowIndex, 1, 1, numCols).setValues([rowData]);
+      } else {
+        sheet.appendRow(rowData);
       }
     });
 
@@ -352,66 +320,77 @@ function sortRosterSheet(sheet) {
 //   3. The migration inserts the new column/header without touching other data.
 //   4. Only after migration succeeds should the new code be deployed.
 
-// ---- Schema Migration: v1.12 → v1.13 ----
-// Run ONCE to reorder Roster columns for human readability.
-// Moves Time to col D (after Event Type) and Ice Breaker to col I (after Facilitator).
-// New order: Date · Group · Event Type · Time · Venue · Organiser · P&W · Facilitator ·
-//            Ice Breaker · Food · Reporting · Notes · Last Updated · Event ID
-// After running, call formatSheets() to refresh column widths and formatting.
-function migrateSchemaToV113() {
+// ---- Schema Migration: v1.19 → v1.20 ----
+// Run ONCE to remove the Event ID column from the Roster tab.
+// The app no longer generates or reads UUIDs — rowIndex is used for all row lookups.
+// After running, call formatSheets() to refresh column widths.
+function migrateSchemaToV120() {
   const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
   if (!sheet) { Logger.log('Roster sheet not found.'); return; }
 
-  function getHeaderMap() {
-    return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
-      .map(function(h) { return String(h).toLowerCase().trim(); });
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
+  const idCol   = lower.indexOf('event id');
+
+  if (idCol < 0) {
+    Logger.log('Event ID column not found — already removed or never existed.');
+    return;
   }
 
-  let lower = getHeaderMap();
-
-  // Idempotency check: Time at col D (idx 3), Ice Breaker at col I (idx 8)
-  if (lower.indexOf('time') === 3 && lower.indexOf('ice breaker') === 8) {
-    Logger.log('Already on v1.13 schema — nothing to do.'); return;
-  }
-
-  // Step 1: Move Time to col D (1-based position 4)
-  const timeCol = lower.indexOf('time') + 1;
-  if (timeCol > 0 && timeCol !== 4) {
-    sheet.moveColumns(sheet.getRange(1, timeCol, 1, 1), 4);
-    Logger.log('Moved Time → col D.');
-    lower = getHeaderMap();
-  }
-
-  // Step 2: Move Ice Breaker to col I (1-based position 9)
-  const ibCol = lower.indexOf('ice breaker') + 1;
-  if (ibCol > 0 && ibCol !== 9) {
-    sheet.moveColumns(sheet.getRange(1, ibCol, 1, 1), 9);
-    Logger.log('Moved Ice Breaker → col I.');
-  }
-
-  Logger.log('migrateSchemaToV113 complete. Run formatSheets() to refresh column formatting.');
+  sheet.deleteColumn(idCol + 1);
+  Logger.log('Removed Event ID column (was col ' + (idCol + 1) + '). Run formatSheets() to refresh formatting.');
 }
 
-// ---- Schema Migration: v1.15 → v1.16 ----
-// Run ONCE to add Can Drive column (col I) to the Members tab.
-// After running, call formatSheets() to apply checkbox formatting.
-function migrateSchemaToV116() {
+// ---- Utility: Fix Members Sheet Ghost Rows ----
+// Run ONCE if Older Sunday School / Harvest members landed at rows 1001+.
+// Root cause: formatSheets() applies checkbox validation to all rows in the sheet,
+// making getLastRow() return ~1000, so appendRow() lands rows after that.
+// This function deletes blank rows between real member rows (bottom-to-top to avoid
+// index shifting), then logs how many were removed.
+// After running, call formatSheets() to re-apply formatting.
+function fixMembersSheetGhostRows() {
   const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
   if (!sheet) { Logger.log('Members sheet not found.'); return; }
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) { Logger.log('Members sheet is empty.'); return; }
 
-  if (lower.indexOf('can drive') >= 0) {
-    Logger.log('Can Drive column already exists — nothing to do.');
+  // Read only col A (Name) — sufficient to identify blank rows
+  const names = sheet.getRange(2, 1, lastRow - 1, 1).getValues(); // rows 2..lastRow
+
+  // Collect blank-row runs (1-indexed), traversing bottom-to-top
+  const blanks = [];
+  let runEnd = -1;
+  for (let i = names.length - 1; i >= 0; i--) {
+    const isEmpty = !names[i][0] || String(names[i][0]).trim() === '';
+    if (isEmpty) {
+      if (runEnd === -1) runEnd = i + 2; // convert to 1-indexed sheet row
+    } else {
+      if (runEnd !== -1) {
+        blanks.push({ start: i + 3, end: runEnd }); // blank run starts one row below current real row
+        runEnd = -1;
+      }
+    }
+  }
+  if (runEnd !== -1) blanks.push({ start: 2, end: runEnd }); // blanks immediately below header
+
+  if (blanks.length === 0) {
+    Logger.log('Members sheet is already compact — no ghost rows found.');
     return;
   }
 
-  const newCol = sheet.getLastColumn() + 1;
-  sheet.getRange(1, newCol).setValue('Can Drive');
-  Logger.log('Added Can Drive column at position ' + newCol + '. Run formatSheets() to apply checkbox formatting.');
+  // Delete from highest rows first (blanks array is already in that order) to avoid index shifting
+  let totalDeleted = 0;
+  blanks.forEach(function(b) {
+    const count = b.end - b.start + 1;
+    sheet.deleteRows(b.start, count);
+    totalDeleted += count;
+    Logger.log('Deleted rows ' + b.start + '–' + b.end + ' (' + count + ' ghost rows)');
+  });
+
+  Logger.log('Done: removed ' + totalDeleted + ' ghost rows. Run formatSheets() to re-apply formatting.');
 }
 
 // ---- Sheet Formatting ----
@@ -447,7 +426,7 @@ function _formatRosterSheet(ss) {
     date: 120, group: 70, eventType: 130, venue: 160,
     organiser: 130, pw: 130, facilitator: 130, food: 120,
     reporting: 130, notes: 220, iceBreaker: 160,
-    time: 80, updatedAt: 145, id: 240
+    time: 80, updatedAt: 145
   };
   Object.entries(widths).forEach(function([key, w]) {
     if (col[key] !== undefined) sheet.setColumnWidth(col[key] + 1, w);
@@ -465,12 +444,6 @@ function _formatRosterSheet(ss) {
   if (col.updatedAt !== undefined) {
     sheet.getRange(2, col.updatedAt + 1, dataRows, 1).setNumberFormat('dd/mm/yyyy hh:mm');
     sheet.getRange(1, col.updatedAt + 1).setNote('Auto-stamped by the app on every save. Do not edit manually.');
-  }
-
-  // --- Event ID: de-emphasised colour + note ---
-  if (col.id !== undefined) {
-    sheet.getRange(2, col.id + 1, dataRows, 1).setFontColor('#94a3b8');
-    sheet.getRange(1, col.id + 1).setNote('UUID auto-generated by the app. Do not edit — used for reliable row lookup.');
   }
 
   // --- Time: header note + plain-text format (prevents Sheets auto-converting "18:30" to a time fraction) ---
@@ -506,7 +479,13 @@ function _formatRosterSheet(ss) {
     .setSecondRowColor('#ffffff');
 
   // --- Portal notice (right of data, always visible in header row) ---
+  // Break apart merges first, then clear stale notices left by previous formatSheets() runs
+  // (column count may differ between runs, leaving old notice text behind).
   sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
+  const maxCols = sheet.getMaxColumns();
+  if (maxCols > headers.length + 1) {
+    sheet.getRange(1, headers.length + 2, 1, maxCols - headers.length - 1).clear();
+  }
   const rNoticeCol = headers.length + 2;
   sheet.getRange(1, rNoticeCol, 1, 4).merge()
     .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
@@ -573,8 +552,12 @@ function _formatMembersSheet(ss) {
     .setSecondRowColor('#ffffff');
 
   // --- Portal notice (right of data, always visible in header row) ---
-  // Break apart entire header row first so any stale merge is fully covered regardless of column count changes.
+  // Break apart merges first, then clear stale notices left by previous formatSheets() runs.
   sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
+  const mMaxCols = sheet.getMaxColumns();
+  if (mMaxCols > headers.length + 1) {
+    sheet.getRange(1, headers.length + 2, 1, mMaxCols - headers.length - 1).clear();
+  }
   const mNoticeCol = headers.length + 2;
   sheet.getRange(1, mNoticeCol, 1, 4).merge()
     .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')

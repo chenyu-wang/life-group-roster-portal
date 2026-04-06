@@ -95,13 +95,15 @@ Only required when adding a new column or renaming an existing header. Steps:
 |---------|--------|--------------------|
 | v1.5.0 | Added Ice Breaker (col K), shifted Last Updated to col L | `migrateSchemaToV15()` |
 | v1.6.0 | Added Time (col M) and Event ID (col N) | `migrateSchemaToV16()` + `backfillEventIds()` |
-| v1.13.0 | Reordered columns for human readability: Time → col D, Ice Breaker → col I | `migrateSchemaToV113()` |
-| v1.16.0 | Added Can Drive (col I) to Members tab | `migrateSchemaToV116()` |
+| v1.13.0 | Reordered columns for human readability: Time → col D, Ice Breaker → col I | `migrateSchemaToV113()` ✓ deleted |
+| v1.16.0 | Added Can Drive (col I) to Members tab | `migrateSchemaToV116()` ✓ deleted |
 | v1.17.0 | Added Older Sunday School member type; added 17 Older SS members via seeder | `importOlderSSMembers()` ✓ deleted |
 | v1.17.1 | Kept Harvest member type; added 6 JAG1 Harvest members via seeder; role toggles disabled for Harvest/Older SS in edit form | `importHarvestMembers()` ✓ deleted |
 | v1.18.0 | Fixed time timezone bug (UTC+8 Perth shifted 18:30→02:30); batch save for performance; Time column set to plain text | `fixTimeValues()` ✓ deleted |
+| v1.20.0 | Removed Event ID column (UUID); rowIndex used for all row lookups | `migrateSchemaToV120()` — run once, then delete |
+| v1.20.0 | Fix Members sheet ghost rows (Older SS/Harvest at row 1001+) | `fixMembersSheetGhostRows()` — run once, then delete |
 
-### Current schema (v1.13.0, 14 columns — Roster tab)
+### Current schema (v1.20.0, 13 columns — Roster tab)
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
 | A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
@@ -117,7 +119,6 @@ Only required when adding a new column or renaming an existing header. Steps:
 | K | Reporting | reporting | |
 | L | Notes | notes | Special events: `Label: Value\n...` per line |
 | M | Last Updated | updatedAt | Auto-stamped; do not edit |
-| N | Event ID | id | UUID auto-generated; do not edit |
 
 ### Members tab schema (fixed, 9 columns)
 | Col | Sheet Header | Notes |
@@ -153,8 +154,7 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 | Datetime format | `dd/mm/yyyy hh:mm` on Last Updated | — |
 | Dropdown validation | Group, Event Type | Group, Role Type |
 | Checkbox validation | — | Can Organise, Can P&W, Can Facilitate, Can Report, Active |
-| Header notes | Last Updated, Time, Event ID | — |
-| Event ID text colour | Light grey (de-emphasised) | — |
+| Header notes | Last Updated, Time | — |
 
 ### Adding a new field — formatting checklist
 1. Run schema migration (`migrateSchemaToVXY()`) to add the column header
