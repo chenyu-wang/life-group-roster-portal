@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.20.0 (2026-04-06)
+// Version: 1.20.1 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.20.0';
+const VERSION      = '1.20.1';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -67,12 +67,14 @@ function getRosterEntries(ss) {
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
   const data = sheet.getDataRange().getValues();
-  const col  = _rosterColMap(data[0]);   // derive positions from header row
+  // Auto-detect header row: if row 1 has no recognized column names, it's the notice row
+  const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
+  const col  = _rosterColMap(data[headerRowIdx]);
   const tz   = Session.getScriptTimeZone();
   const g    = function(row, key) { return col[key] !== undefined ? row[col[key]] : ''; };
   const entries = [];
 
-  for (let i = 1; i < data.length; i++) {
+  for (let i = headerRowIdx + 1; i < data.length; i++) {
     const row = data[i];
     if (!g(row, 'date')) continue;
     const dateObj = new Date(g(row, 'date'));
@@ -110,9 +112,12 @@ function getMembers(ss) {
   if (!sheet || sheet.getLastRow() <= 1) return [];
 
   const data = sheet.getDataRange().getValues();
+  // Auto-detect: if row 1 col A is 'Name', headers are in row 1 — members start at index 1.
+  // Otherwise row 1 is the notice row — skip to index 2.
+  const memberStartIdx = String(data[0][0]).toLowerCase().trim() === 'name' ? 1 : 2;
   const members = [];
 
-  for (let i = 1; i < data.length; i++) {
+  for (let i = memberStartIdx; i < data.length; i++) {
     const row = data[i];
     if (!row[0]) continue;
     members.push({
@@ -150,9 +155,10 @@ function saveRosterEntry(entry) {
     // Read sheet once: serves both header mapping and row write.
     // Building rowData by column position makes writes column-order agnostic —
     // reordering columns in the sheet never breaks saves.
-    const data    = sheet.getDataRange().getValues();
-    const col     = _rosterColMap(data[0]);
-    const numCols = data[0].length;
+    const data         = sheet.getDataRange().getValues();
+    const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
+    const col          = _rosterColMap(data[headerRowIdx]);
+    const numCols      = data[headerRowIdx].length;
 
     // C: Apply @-format BEFORE writing. Range = current data rows + 50 row buffer (covers
     // appendRow for new entries without formatting the entire 1000-row sheet every save).
@@ -198,9 +204,10 @@ function saveRosterEntries(entries) {
     const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
     if (!sheet) return { success: false, error: 'Roster sheet not found' };
 
-    const data    = sheet.getDataRange().getValues();
-    const col     = _rosterColMap(data[0]);
-    const numCols = data[0].length;
+    const data         = sheet.getDataRange().getValues();
+    const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
+    const col          = _rosterColMap(data[headerRowIdx]);
+    const numCols      = data[headerRowIdx].length;
 
     // C: Apply @-format BEFORE any writes. Range = current data rows + 50 row buffer.
     // Must happen before writes: Sheets auto-converts 'HH:mm' strings to fractions if the
@@ -302,7 +309,12 @@ function deleteMember(rowIndex) {
 function sortRosterSheet(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 2) return;
-  sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).sort([
+  // Auto-detect data start row: if row 1 col A is 'Date', headers are in row 1 — data starts at 2.
+  // Otherwise a notice row exists in row 1 — data starts at 3.
+  const row1ColA     = String(sheet.getRange(1, 1).getValue()).toLowerCase().trim();
+  const dataStartRow = row1ColA === 'date' ? 2 : 3;
+  if (lastRow < dataStartRow) return;
+  sheet.getRange(dataStartRow, 1, lastRow - dataStartRow + 1, sheet.getLastColumn()).sort([
     { column: 1, ascending: true },
     { column: 2, ascending: true }
   ]);
@@ -340,6 +352,34 @@ function migrateSchemaToV120() {
 
   sheet.deleteColumn(idCol + 1);
   Logger.log('Removed Event ID column (was col ' + (idCol + 1) + '). Run formatSheets() to refresh formatting.');
+}
+
+// ---- Schema Migration: v1.20 → v1.21 ----
+// Run ONCE to insert a notice row as row 1 in both Roster and Members sheets.
+// Before migration: notice sits to the right of headers in row 1.
+// After migration: notice occupies row 1 (frozen); column headers in row 2; data from row 3.
+// Run order: migrateSchemaToV120 → migrateSchemaToV121 → fixMembersSheetGhostRows → formatSheets
+// Idempotent: skips sheets where row 1 is already the notice row (col A ≠ known header).
+// After running, call formatSheets() to write the notice content and finalize formatting.
+function migrateSchemaToV121() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+
+  function insertNoticeRow(sheet, sheetName, expectedHeader) {
+    const row1ColA = String(sheet.getRange(1, 1).getValue()).toLowerCase().trim();
+    if (row1ColA !== expectedHeader) {
+      Logger.log(sheetName + ': already migrated (row 1 col A = "' + row1ColA + '") — skipping.');
+      return;
+    }
+    sheet.insertRowBefore(1);
+    Logger.log(sheetName + ': inserted blank notice row 1. Headers now in row 2. Run formatSheets() to write notice content.');
+  }
+
+  const rosterSheet  = ss.getSheetByName(ROSTER_SHEET_NAME);
+  const membersSheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
+  if (rosterSheet)  insertNoticeRow(rosterSheet,  'Roster',  'date');
+  if (membersSheet) insertNoticeRow(membersSheet, 'Members', 'name');
+
+  Logger.log('migrateSchemaToV121 complete. Run formatSheets() to finalize.');
 }
 
 // ---- Utility: Fix Members Sheet Ghost Rows ----
@@ -416,10 +456,21 @@ function _formatRosterSheet(ss) {
   const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
   if (!sheet) { Logger.log('Roster sheet not found.'); return; }
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const col     = _rosterColMap(headers);   // header-based: safe after column reorder
+  // Auto-detect layout: if row 1 has no recognized column headers, it's the notice row (post-migration)
+  const row1vals     = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const hasNoticeRow = Object.keys(_rosterColMap(row1vals)).length === 0;
+  const headerRow    = hasNoticeRow ? 2 : 1;   // 1-indexed sheet row containing column headers
+  const dataStartRow = hasNoticeRow ? 3 : 2;   // 1-indexed first data row
+
+  const headers  = hasNoticeRow
+    ? sheet.getRange(2, 1, 1, sheet.getLastColumn()).getValues()[0]
+    : row1vals;
+  const col      = _rosterColMap(headers);
   const maxRows  = sheet.getMaxRows();
-  const dataRows = maxRows - 1;
+  const dataRows = maxRows - dataStartRow + 1;
+
+  // Use recognized columns only for count — immune to notice cell pollution in getLastColumn()
+  const dataColCount = Object.keys(col).length > 0 ? Math.max(...Object.values(col)) + 1 : 0;
 
   // --- Column widths (add new fields here) ---
   const widths = {
@@ -432,35 +483,31 @@ function _formatRosterSheet(ss) {
     if (col[key] !== undefined) sheet.setColumnWidth(col[key] + 1, w);
   });
 
-  // --- Freeze header ---
-  sheet.setFrozenRows(1);
+  // --- Freeze: notice row + header row if post-migration, otherwise just header row ---
+  sheet.setFrozenRows(hasNoticeRow ? 2 : 1);
 
   // --- Date: readable format ---
   if (col.date !== undefined) {
-    sheet.getRange(2, col.date + 1, dataRows, 1).setNumberFormat('ddd dd/mm/yyyy');
+    sheet.getRange(dataStartRow, col.date + 1, dataRows, 1).setNumberFormat('ddd dd/mm/yyyy');
   }
 
   // --- Last Updated: datetime format + note ---
   if (col.updatedAt !== undefined) {
-    sheet.getRange(2, col.updatedAt + 1, dataRows, 1).setNumberFormat('dd/mm/yyyy hh:mm');
-    sheet.getRange(1, col.updatedAt + 1).setNote('Auto-stamped by the app on every save. Do not edit manually.');
+    sheet.getRange(dataStartRow, col.updatedAt + 1, dataRows, 1).setNumberFormat('dd/mm/yyyy hh:mm');
+    sheet.getRange(headerRow, col.updatedAt + 1).setNote('Auto-stamped by the app on every save. Do not edit manually.');
   }
 
   // --- Time: header note + plain-text format (prevents Sheets auto-converting "18:30" to a time fraction) ---
   if (col.time !== undefined) {
-    sheet.getRange(1, col.time + 1).setNote('24-hour format, e.g. 18:30 for 6:30 PM. Leave blank if no fixed time.');
-    // Apply to entire column (not just existing rows) so new rows never auto-convert 'HH:mm' to a fraction.
-    const timeMaxRows = sheet.getMaxRows() - 1;
-    if (timeMaxRows > 0) {
-      sheet.getRange(2, col.time + 1, timeMaxRows, 1).setNumberFormat('@');
-    }
+    sheet.getRange(headerRow, col.time + 1).setNote('24-hour format, e.g. 18:30 for 6:30 PM. Leave blank if no fixed time.');
+    if (dataRows > 0) sheet.getRange(dataStartRow, col.time + 1, dataRows, 1).setNumberFormat('@');
   }
 
   // --- Group: dropdown validation ---
   if (col.group !== undefined) {
     const v = SpreadsheetApp.newDataValidation()
       .requireValueInList(['JAG1', 'JAG2'], true).setAllowInvalid(false).build();
-    sheet.getRange(2, col.group + 1, dataRows, 1).setDataValidation(v);
+    sheet.getRange(dataStartRow, col.group + 1, dataRows, 1).setDataValidation(v);
   }
 
   // --- Event Type: dropdown validation ---
@@ -468,63 +515,90 @@ function _formatRosterSheet(ss) {
     const v = SpreadsheetApp.newDataValidation()
       .requireValueInList(['Youth Hour', 'Separated LG', 'Combined', 'Special', 'Cancelled', 'Replaced'], true)
       .setAllowInvalid(false).build();
-    sheet.getRange(2, col.eventType + 1, dataRows, 1).setDataValidation(v);
+    sheet.getRange(dataStartRow, col.eventType + 1, dataRows, 1).setDataValidation(v);
   }
 
   // --- Alternating row colours ---
   sheet.getBandings().forEach(function(b) { b.remove(); });
-  sheet.getRange(2, 1, dataRows, headers.length)
-    .applyRowBanding()
-    .setFirstRowColor('#f5f3ff')
-    .setSecondRowColor('#ffffff');
-
-  // --- Portal notice (right of data, always visible in header row) ---
-  // Break apart merges first, then clear stale notices left by previous formatSheets() runs
-  // (column count may differ between runs, leaving old notice text behind).
-  sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
-  const maxCols = sheet.getMaxColumns();
-  if (maxCols > headers.length + 1) {
-    sheet.getRange(1, headers.length + 2, 1, maxCols - headers.length - 1).clear();
+  if (dataColCount > 0) {
+    sheet.getRange(dataStartRow, 1, dataRows, dataColCount)
+      .applyRowBanding()
+      .setFirstRowColor('#f5f3ff')
+      .setSecondRowColor('#ffffff');
   }
-  const rNoticeCol = headers.length + 2;
-  sheet.getRange(1, rNoticeCol, 1, 4).merge()
-    .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
-    .setBackground('#fef08a')
-    .setFontColor('#713f12')
-    .setFontWeight('bold')
-    .setFontSize(9)
-    .setWrap(true)
-    .setVerticalAlignment('middle')
-    .setHorizontalAlignment('center');
-  sheet.setColumnWidth(rNoticeCol, 320);
-  sheet.setRowHeight(1, 48);
 
-  Logger.log('Roster sheet formatted (' + headers.length + ' columns).');
+  // --- Portal notice ---
+  sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
+  if (hasNoticeRow) {
+    // Post-migration: notice spans data columns in row 1 (idempotent — safe to re-run)
+    if (dataColCount > 0) {
+      sheet.getRange(1, 1, 1, dataColCount).merge()
+        .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
+        .setBackground('#fef08a')
+        .setFontColor('#713f12')
+        .setFontWeight('bold')
+        .setFontSize(9)
+        .setWrap(true)
+        .setVerticalAlignment('middle')
+        .setHorizontalAlignment('center');
+      sheet.setRowHeight(1, 48);
+    }
+  } else {
+    // Pre-migration: notice to the right of data; clear stale columns first (growing-column fix)
+    const maxCols = sheet.getMaxColumns();
+    if (dataColCount > 0 && maxCols > dataColCount + 1) {
+      sheet.getRange(1, dataColCount + 2, 1, maxCols - dataColCount - 1).clear();
+    }
+    const rNoticeCol = dataColCount + 2;
+    sheet.getRange(1, rNoticeCol, 1, 4).merge()
+      .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
+      .setBackground('#fef08a')
+      .setFontColor('#713f12')
+      .setFontWeight('bold')
+      .setFontSize(9)
+      .setWrap(true)
+      .setVerticalAlignment('middle')
+      .setHorizontalAlignment('center');
+    sheet.setColumnWidth(rNoticeCol, 320);
+    sheet.setRowHeight(1, 48);
+  }
+
+  Logger.log('Roster sheet formatted (' + dataColCount + ' data columns, ' + (hasNoticeRow ? 'post' : 'pre') + '-migration).');
 }
 
 function _formatMembersSheet(ss) {
   const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
   if (!sheet) { Logger.log('Members sheet not found.'); return; }
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
-  const maxRows  = sheet.getMaxRows();
-  const dataRows = maxRows - 1;
+  // Auto-detect layout: if row 1 col A is 'Name', headers are in row 1 (pre-migration).
+  // Otherwise row 1 is the notice row (post-migration).
+  const row1ColA     = String(sheet.getRange(1, 1).getValue()).toLowerCase().trim();
+  const hasNoticeRow = row1ColA !== 'name';
+  const headerRow    = hasNoticeRow ? 2 : 1;
+  const dataStartRow = hasNoticeRow ? 3 : 2;
+
+  const maxRows        = sheet.getMaxRows();
+  const dataRows       = maxRows - dataStartRow + 1;
+  const DATA_COL_COUNT = 9; // Members schema is always 9 columns
 
   // --- Column widths (positional, matches Members schema order) ---
   [160, 70, 105, 80, 110, 90, 70, 90, 80].forEach(function(w, i) {
-    if (i < headers.length) sheet.setColumnWidth(i + 1, w);
+    sheet.setColumnWidth(i + 1, w);
   });
 
-  // --- Freeze header ---
-  sheet.setFrozenRows(1);
+  // --- Freeze: notice row + header row if post-migration, otherwise just header row ---
+  sheet.setFrozenRows(hasNoticeRow ? 2 : 1);
+
+  // --- Read headers from the correct row for dropdown/checkbox column detection ---
+  const headers = sheet.getRange(headerRow, 1, 1, DATA_COL_COUNT).getValues()[0];
+  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
 
   // --- Group: dropdown ---
   const groupIdx = lower.indexOf('group');
   if (groupIdx >= 0) {
     const v = SpreadsheetApp.newDataValidation()
       .requireValueInList(['JAG1', 'JAG2', 'Both'], true).setAllowInvalid(false).build();
-    sheet.getRange(2, groupIdx + 1, dataRows, 1).setDataValidation(v);
+    sheet.getRange(dataStartRow, groupIdx + 1, dataRows, 1).setDataValidation(v);
   }
 
   // --- Role Type: dropdown ---
@@ -532,46 +606,60 @@ function _formatMembersSheet(ss) {
   if (roleIdx >= 0) {
     const v = SpreadsheetApp.newDataValidation()
       .requireValueInList(['Adult', 'Student', 'Older Sunday School', 'Harvest'], true).setAllowInvalid(false).build();
-    sheet.getRange(2, roleIdx + 1, dataRows, 1).setDataValidation(v);
+    sheet.getRange(dataStartRow, roleIdx + 1, dataRows, 1).setDataValidation(v);
   }
 
   // --- Boolean columns: checkbox ---
   ['can organise', 'can p&w', 'can facilitate', 'can report', 'active', 'can drive'].forEach(function(name) {
     const idx = lower.indexOf(name);
     if (idx >= 0) {
-      sheet.getRange(2, idx + 1, dataRows, 1)
+      sheet.getRange(dataStartRow, idx + 1, dataRows, 1)
         .setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
     }
   });
 
   // --- Alternating row colours ---
   sheet.getBandings().forEach(function(b) { b.remove(); });
-  sheet.getRange(2, 1, dataRows, headers.length)
+  sheet.getRange(dataStartRow, 1, dataRows, DATA_COL_COUNT)
     .applyRowBanding()
     .setFirstRowColor('#f5f3ff')
     .setSecondRowColor('#ffffff');
 
-  // --- Portal notice (right of data, always visible in header row) ---
-  // Break apart merges first, then clear stale notices left by previous formatSheets() runs.
+  // --- Portal notice ---
   sheet.getRange(1, 1, 1, sheet.getMaxColumns()).breakApart();
-  const mMaxCols = sheet.getMaxColumns();
-  if (mMaxCols > headers.length + 1) {
-    sheet.getRange(1, headers.length + 2, 1, mMaxCols - headers.length - 1).clear();
+  if (hasNoticeRow) {
+    // Post-migration: notice spans data columns in row 1 (idempotent — safe to re-run)
+    sheet.getRange(1, 1, 1, DATA_COL_COUNT).merge()
+      .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
+      .setBackground('#fef08a')
+      .setFontColor('#713f12')
+      .setFontWeight('bold')
+      .setFontSize(9)
+      .setWrap(true)
+      .setVerticalAlignment('middle')
+      .setHorizontalAlignment('center');
+    sheet.setRowHeight(1, 48);
+  } else {
+    // Pre-migration: notice to the right of data; clear stale columns first (growing-column fix)
+    const mMaxCols = sheet.getMaxColumns();
+    if (mMaxCols > DATA_COL_COUNT + 1) {
+      sheet.getRange(1, DATA_COL_COUNT + 2, 1, mMaxCols - DATA_COL_COUNT - 1).clear();
+    }
+    const mNoticeCol = DATA_COL_COUNT + 2;
+    sheet.getRange(1, mNoticeCol, 1, 4).merge()
+      .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
+      .setBackground('#fef08a')
+      .setFontColor('#713f12')
+      .setFontWeight('bold')
+      .setFontSize(9)
+      .setWrap(true)
+      .setVerticalAlignment('middle')
+      .setHorizontalAlignment('center');
+    sheet.setColumnWidth(mNoticeCol, 320);
+    sheet.setRowHeight(1, 48);
   }
-  const mNoticeCol = headers.length + 2;
-  sheet.getRange(1, mNoticeCol, 1, 4).merge()
-    .setValue('⚠️  Please use the JAG Roster Portal to make changes — do not edit this sheet directly.\n🔗  https://tinyurl.com/jagrosterportal')
-    .setBackground('#fef08a')
-    .setFontColor('#713f12')
-    .setFontWeight('bold')
-    .setFontSize(9)
-    .setWrap(true)
-    .setVerticalAlignment('middle')
-    .setHorizontalAlignment('center');
-  sheet.setColumnWidth(mNoticeCol, 320);
-  sheet.setRowHeight(1, 48);
 
-  Logger.log('Members sheet formatted (' + headers.length + ' columns).');
+  Logger.log('Members sheet formatted (' + DATA_COL_COUNT + ' data columns, ' + (hasNoticeRow ? 'post' : 'pre') + '-migration).');
 }
 
 

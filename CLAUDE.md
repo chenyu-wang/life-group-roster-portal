@@ -102,8 +102,10 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.18.0 | Fixed time timezone bug (UTC+8 Perth shifted 18:30→02:30); batch save for performance; Time column set to plain text | `fixTimeValues()` ✓ deleted |
 | v1.20.0 | Removed Event ID column (UUID); rowIndex used for all row lookups | `migrateSchemaToV120()` — run once, then delete |
 | v1.20.0 | Fix Members sheet ghost rows (Older SS/Harvest at row 1001+) | `fixMembersSheetGhostRows()` — run once, then delete |
+| v1.20.1 | Notice row inserted as row 1; column headers in row 2; data from row 3 | `migrateSchemaToV121()` — run once, then delete |
 
-### Current schema (v1.20.0, 13 columns — Roster tab)
+### Current schema (v1.20.1, 13 columns — Roster tab)
+> Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
 | A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
@@ -154,6 +156,7 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 | Datetime format | `dd/mm/yyyy hh:mm` on Last Updated | — |
 | Dropdown validation | Group, Event Type | Group, Role Type |
 | Checkbox validation | — | Can Organise, Can P&W, Can Facilitate, Can Report, Active |
+| Portal notice row | Row 1 (merged, frozen) | Row 1 (merged, frozen) |
 | Header notes | Last Updated, Time | — |
 
 ### Adding a new field — formatting checklist
