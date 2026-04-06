@@ -100,11 +100,12 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.17.0 | Added Older Sunday School member type; added 17 Older SS members via seeder | `importOlderSSMembers()` ✓ deleted |
 | v1.17.1 | Kept Harvest member type; added 6 JAG1 Harvest members via seeder; role toggles disabled for Harvest/Older SS in edit form | `importHarvestMembers()` ✓ deleted |
 | v1.18.0 | Fixed time timezone bug (UTC+8 Perth shifted 18:30→02:30); batch save for performance; Time column set to plain text | `fixTimeValues()` ✓ deleted |
-| v1.20.0 | Removed Event ID column (UUID); rowIndex used for all row lookups | `migrateSchemaToV120()` — run once, then delete |
-| v1.20.0 | Fix Members sheet ghost rows (Older SS/Harvest at row 1001+) | `fixMembersSheetGhostRows()` — run once, then delete |
-| v1.20.1 | Notice row inserted as row 1; column headers in row 2; data from row 3 | `migrateSchemaToV121()` — run once, then delete |
+| v1.20.0 | Removed Event ID column (UUID); rowIndex used for all row lookups | `migrateSchemaToV120()` ✓ deleted |
+| v1.20.0 | Fix Members sheet ghost rows (Older SS/Harvest at row 1001+) | `fixMembersSheetGhostRows()` ✓ deleted |
+| v1.20.1 | Notice row inserted as row 1; column headers in row 2; data from row 3 | `migrateSchemaToV121()` ✓ deleted |
+| v1.21.0 | Added Sunday School as a valid Members Group; no schema change (dropdown-only) | n/a |
 
-### Current schema (v1.20.1, 13 columns — Roster tab)
+### Current schema (v1.21.0, 13 columns — Roster tab)
 > Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
@@ -126,7 +127,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | Col | Sheet Header | Notes |
 |-----|-------------|-------|
 | A | Name | |
-| B | Group | Dropdown: JAG1, JAG2, Both |
+| B | Group | Dropdown: JAG1, JAG2, Both, Sunday School |
 | C | Can Organise | Checkbox |
 | D | Can P&W | Checkbox |
 | E | Can Facilitate | Checkbox |

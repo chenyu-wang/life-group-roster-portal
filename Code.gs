@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.20.3 (2026-04-06)
+// Version: 1.21.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.20.3';
+const VERSION      = '1.21.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -320,119 +320,6 @@ function sortRosterSheet(sheet) {
   ]);
 }
 
-// ---- Data-Safe Deployment Notes ----
-// Deploying a new Apps Script version NEVER modifies sheet data — only the
-// code changes.  getRosterEntries() maps columns by header name, so adding
-// or reordering columns in the sheet is always safe.
-//
-// When a schema-breaking change is needed (new column, renamed header):
-//   1. Bump VERSION (MINOR bump) and add a migrateSchemaToVXY() function below.
-//      The function name MUST match the new version number (e.g. v1.12 → migrateSchemaToV112).
-//   2. Run it ONCE from the Apps Script editor (never auto-run on load).
-//   3. The migration inserts the new column/header without touching other data.
-//   4. Only after migration succeeds should the new code be deployed.
-
-// ---- Schema Migration: v1.19 → v1.20 ----
-// Run ONCE to remove the Event ID column from the Roster tab.
-// The app no longer generates or reads UUIDs — rowIndex is used for all row lookups.
-// After running, call formatSheets() to refresh column widths.
-function migrateSchemaToV120() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
-  if (!sheet) { Logger.log('Roster sheet not found.'); return; }
-
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
-  const idCol   = lower.indexOf('event id');
-
-  if (idCol < 0) {
-    Logger.log('Event ID column not found — already removed or never existed.');
-    return;
-  }
-
-  sheet.deleteColumn(idCol + 1);
-  Logger.log('Removed Event ID column (was col ' + (idCol + 1) + '). Run formatSheets() to refresh formatting.');
-}
-
-// ---- Schema Migration: v1.20 → v1.21 ----
-// Run ONCE to insert a notice row as row 1 in both Roster and Members sheets.
-// Before migration: notice sits to the right of headers in row 1.
-// After migration: notice occupies row 1 (frozen); column headers in row 2; data from row 3.
-// Run order: migrateSchemaToV120 → migrateSchemaToV121 → fixMembersSheetGhostRows → formatSheets
-// Idempotent: skips sheets where row 1 is already the notice row (col A ≠ known header).
-// After running, call formatSheets() to write the notice content and finalize formatting.
-function migrateSchemaToV121() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-
-  function insertNoticeRow(sheet, sheetName, expectedHeader) {
-    const row1ColA = String(sheet.getRange(1, 1).getValue()).toLowerCase().trim();
-    if (row1ColA !== expectedHeader) {
-      Logger.log(sheetName + ': already migrated (row 1 col A = "' + row1ColA + '") — skipping.');
-      return;
-    }
-    sheet.insertRowBefore(1);
-    Logger.log(sheetName + ': inserted blank notice row 1. Headers now in row 2. Run formatSheets() to write notice content.');
-  }
-
-  const rosterSheet  = ss.getSheetByName(ROSTER_SHEET_NAME);
-  const membersSheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
-  if (rosterSheet)  insertNoticeRow(rosterSheet,  'Roster',  'date');
-  if (membersSheet) insertNoticeRow(membersSheet, 'Members', 'name');
-
-  Logger.log('migrateSchemaToV121 complete. Run formatSheets() to finalize.');
-}
-
-// ---- Utility: Fix Members Sheet Ghost Rows ----
-// Run ONCE if Older Sunday School / Harvest members landed at rows 1001+.
-// Root cause: formatSheets() applies checkbox validation to all rows in the sheet,
-// making getLastRow() return ~1000, so appendRow() lands rows after that.
-// This function deletes blank rows between real member rows (bottom-to-top to avoid
-// index shifting), then logs how many were removed.
-// After running, call formatSheets() to re-apply formatting.
-function fixMembersSheetGhostRows() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(MEMBERS_SHEET_NAME);
-  if (!sheet) { Logger.log('Members sheet not found.'); return; }
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) { Logger.log('Members sheet is empty.'); return; }
-
-  // Read only col A (Name) — sufficient to identify blank rows
-  const names = sheet.getRange(2, 1, lastRow - 1, 1).getValues(); // rows 2..lastRow
-
-  // Collect blank-row runs (1-indexed), traversing bottom-to-top
-  const blanks = [];
-  let runEnd = -1;
-  for (let i = names.length - 1; i >= 0; i--) {
-    const isEmpty = !names[i][0] || String(names[i][0]).trim() === '';
-    if (isEmpty) {
-      if (runEnd === -1) runEnd = i + 2; // convert to 1-indexed sheet row
-    } else {
-      if (runEnd !== -1) {
-        blanks.push({ start: i + 3, end: runEnd }); // blank run starts one row below current real row
-        runEnd = -1;
-      }
-    }
-  }
-  if (runEnd !== -1) blanks.push({ start: 2, end: runEnd }); // blanks immediately below header
-
-  if (blanks.length === 0) {
-    Logger.log('Members sheet is already compact — no ghost rows found.');
-    return;
-  }
-
-  // Delete from highest rows first (blanks array is already in that order) to avoid index shifting
-  let totalDeleted = 0;
-  blanks.forEach(function(b) {
-    const count = b.end - b.start + 1;
-    sheet.deleteRows(b.start, count);
-    totalDeleted += count;
-    Logger.log('Deleted rows ' + b.start + '–' + b.end + ' (' + count + ' ghost rows)');
-  });
-
-  Logger.log('Done: removed ' + totalDeleted + ' ghost rows. Run formatSheets() to re-apply formatting.');
-}
-
 // ---- Sheet Formatting ----
 // Run formatSheets() from the Apps Script editor any time to:
 //   • Apply column widths, dropdowns, date formats, alternating row colours
@@ -512,15 +399,14 @@ function _formatRosterSheet(ss) {
   }
 
   // --- Alternating row colours ---
-  // clearFormat() removes ALL explicit cell formatting (backgrounds, number formats, fonts) so
-  // banding applies uniformly across every column. Number formats are re-applied after banding.
+  // clearFormat() removes ALL explicit cell formatting so banding applies uniformly.
+  // Number formats are re-applied after banding, then setBackground(null) ensures
+  // setNumberFormat() hasn't left any implicit explicit backgrounds that override banding.
   sheet.getBandings().forEach(function(b) { b.remove(); });
   if (dataColCount > 0) {
-    sheet.getRange(dataStartRow, 1, dataRows, dataColCount).clearFormat();
-    sheet.getRange(dataStartRow, 1, dataRows, dataColCount)
-      .applyRowBanding()
-      .setFirstRowColor('#f5f3ff')
-      .setSecondRowColor('#ffffff');
+    const dataRange = sheet.getRange(dataStartRow, 1, dataRows, dataColCount);
+    dataRange.clearFormat();
+    dataRange.applyRowBanding().setFirstRowColor('#f5f3ff').setSecondRowColor('#ffffff');
     // Re-apply number formats after clearFormat() wiped them
     if (col.date !== undefined)
       sheet.getRange(dataStartRow, col.date + 1, dataRows, 1).setNumberFormat('ddd dd/mm/yyyy');
@@ -528,6 +414,9 @@ function _formatRosterSheet(ss) {
       sheet.getRange(dataStartRow, col.updatedAt + 1, dataRows, 1).setNumberFormat('dd/mm/yyyy hh:mm');
     if (col.time !== undefined && dataRows > 0)
       sheet.getRange(dataStartRow, col.time + 1, dataRows, 1).setNumberFormat('@');
+    // Final pass: setBackground(null) clears any implicit backgrounds set by setNumberFormat,
+    // ensuring banding colours show through uniformly on all columns including Last Updated.
+    dataRange.setBackground(null);
   }
 
   // --- Portal notice ---
@@ -600,7 +489,7 @@ function _formatMembersSheet(ss) {
   const groupIdx = lower.indexOf('group');
   if (groupIdx >= 0) {
     const v = SpreadsheetApp.newDataValidation()
-      .requireValueInList(['JAG1', 'JAG2', 'Both'], true).setAllowInvalid(false).build();
+      .requireValueInList(['JAG1', 'JAG2', 'Both', 'Sunday School'], true).setAllowInvalid(false).build();
     sheet.getRange(dataStartRow, groupIdx + 1, dataRows, 1).setDataValidation(v);
   }
 
