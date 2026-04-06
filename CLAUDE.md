@@ -111,8 +111,9 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.24.0 | Performance: skip sortRosterSheet() when no date changed and no new row added | n/a |
 | v1.25.0 | Performance: fix _rosterColMap() double-call in all three data functions; skip loadData() after stable saves (no sort needed) | n/a |
 | v1.26.0 | Data structure: combined events (Youth Hour, Combined, Special, Cancelled, Replaced) now saved as single row with Group="Both" instead of two JAG1+JAG2 rows | `migrateRosterToGroupBoth()` |
+| v1.27.0 | Fix `getEligible('organiser', null, true)` for combined form; make load failure errors prominent with retry button | n/a |
 
-### Current schema (v1.26.0, 13 columns — Roster tab)
+### Current schema (v1.27.0, 13 columns — Roster tab)
 > Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
 > **Row structure**: Separated LG → 2 rows (JAG1 + JAG2). All other event types → 1 row (Group="Both").
 | Col | Sheet Header | JS field | Notes |

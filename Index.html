@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.26.0 (2026-04-06) -->
+  <!-- Version: 1.27.0 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -251,7 +251,13 @@ function loadData() {
     .withFailureHandler(function(err) {
       if (gen !== _loadGen) return;
       const loadingEl = document.getElementById('loading-msg');
-      if (loadingEl) loadingEl.textContent = 'Error loading data: ' + err.message;
+      if (loadingEl) {
+        loadingEl.innerHTML = '<div style="color:#991b1b;font-weight:700;margin-bottom:8px;">Failed to load roster</div>'
+          + '<div style="color:#7f1d1d;font-size:.8rem;margin-bottom:12px;">' + (err.message || String(err)) + '</div>'
+          + '<button onclick="loadData()" style="border:none;background:#6366f1;color:#fff;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;">Retry</button>';
+        loadingEl.style.cssText = 'background:#fee2e2;border-radius:10px;padding:20px;margin:16px 0;text-align:center;';
+      }
+      console.error('getAllData failed:', err);
     })
     .getAllData();
 }
@@ -1309,7 +1315,9 @@ function getEligible(role, group, isCombined) {
   const active = getActive();
   switch (role) {
     case 'organiser':
-      // Always group-specific; group won't be null here
+      if (isCombined && group === null) {
+        return active.filter(m => m.canOrganise).map(m => m.name);
+      }
       return active.filter(m => m.canOrganise && groupMatch(m, group)).map(m => m.name);
     case 'pw':
       if (isCombined && group === null) {
