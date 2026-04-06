@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.20.1 (2026-04-06)
+// Version: 1.20.2 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.20.1';
+const VERSION      = '1.20.2';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -519,8 +519,11 @@ function _formatRosterSheet(ss) {
   }
 
   // --- Alternating row colours ---
+  // Clear any explicit cell backgrounds first — explicit backgrounds take precedence over banding,
+  // so previous formatSheets() runs can leave stale backgrounds that override the banding colour.
   sheet.getBandings().forEach(function(b) { b.remove(); });
   if (dataColCount > 0) {
+    sheet.getRange(dataStartRow, 1, dataRows, dataColCount).setBackground(null);
     sheet.getRange(dataStartRow, 1, dataRows, dataColCount)
       .applyRowBanding()
       .setFirstRowColor('#f5f3ff')
@@ -620,6 +623,7 @@ function _formatMembersSheet(ss) {
 
   // --- Alternating row colours ---
   sheet.getBandings().forEach(function(b) { b.remove(); });
+  sheet.getRange(dataStartRow, 1, dataRows, DATA_COL_COUNT).setBackground(null);
   sheet.getRange(dataStartRow, 1, dataRows, DATA_COL_COUNT)
     .applyRowBanding()
     .setFirstRowColor('#f5f3ff')
