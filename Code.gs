@@ -355,6 +355,18 @@ function migrateRosterToGroupBoth() {
   const col          = headerRowIdx === 0 ? firstRowMap : _rosterColMap(data[headerRowIdx]);
   const dataStart    = headerRowIdx + 2; // 1-indexed first data row (sheet row)
 
+  // Update Group column validation to accept "Both" before writing — the old rule
+  // only allows JAG1/JAG2 and would reject the setValue("Both") calls below.
+  if (col.group !== undefined) {
+    const dataRows = sheet.getMaxRows() - dataStart + 1;
+    if (dataRows > 0) {
+      const v = SpreadsheetApp.newDataValidation()
+        .requireValueInList(['JAG1', 'JAG2', 'Both'], true).setAllowInvalid(false).build();
+      sheet.getRange(dataStart, col.group + 1, dataRows, 1).setDataValidation(v);
+    }
+    SpreadsheetApp.flush();
+  }
+
   // Index all data rows by date+eventType key
   const byKey = {}; // key → [{ rowIndex, group, row }]
   for (let i = dataStart - 1; i < data.length; i++) {
