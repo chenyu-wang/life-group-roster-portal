@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.25.0 (2026-04-06)
+// Version: 1.26.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.25.0';
+const VERSION      = '1.26.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -339,6 +339,76 @@ function sortRosterSheet(sheet) {
   ]);
 }
 
+// ---- Migration: Roster Group="Both" ----
+// Run ONCE after deploying v1.26.0.
+// Merges legacy JAG1+JAG2 row pairs for combined events into a single row with Group="Both".
+// Also cleans up ghost duplicate rows. Idempotent — safe to re-run.
+// Delete this function after confirmed run on the live sheet.
+function migrateRosterToGroupBoth() {
+  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
+  if (!sheet) { Logger.log('Roster sheet not found.'); return; }
+
+  const data         = sheet.getDataRange().getValues();
+  const firstRowMap  = _rosterColMap(data[0]);
+  const headerRowIdx = Object.keys(firstRowMap).length > 0 ? 0 : 1;
+  const col          = headerRowIdx === 0 ? firstRowMap : _rosterColMap(data[headerRowIdx]);
+  const dataStart    = headerRowIdx + 2; // 1-indexed first data row (sheet row)
+
+  // Index all data rows by date+eventType key
+  const byKey = {}; // key → [{ rowIndex, group, row }]
+  for (let i = dataStart - 1; i < data.length; i++) {
+    const row  = data[i];
+    const date = row[col.date];
+    if (!date) continue;
+    const key = String(date) + '|' + String(row[col.eventType] || '');
+    if (!byKey[key]) byKey[key] = [];
+    byKey[key].push({ rowIndex: i + 1, group: String(row[col.group] || ''), row });
+  }
+
+  const toUpdate  = []; // { rowIndex, colIndex (1-indexed), value }
+  const toDelete  = []; // rowIndex values (1-indexed), deleted bottom-up
+
+  Object.values(byKey).forEach(function(rows) {
+    const et = String((rows[0].row[col.eventType] || '')).trim();
+    if (et === 'Separated LG') return; // per-group rows are correct — leave untouched
+
+    const bothRows = rows.filter(r => r.group === 'Both');
+    const jag1Rows = rows.filter(r => r.group === 'JAG1');
+    const jag2Rows = rows.filter(r => r.group === 'JAG2');
+
+    if (bothRows.length > 0) {
+      // Already migrated: keep first Both row, delete all duplicates and legacy JAG1/JAG2
+      bothRows.slice(1).forEach(r => toDelete.push(r.rowIndex));
+      jag1Rows.forEach(r => toDelete.push(r.rowIndex));
+      jag2Rows.forEach(r => toDelete.push(r.rowIndex));
+      return;
+    }
+
+    // Not yet migrated: pick the JAG1 row (or JAG2 if none) as the keeper
+    const keepRow = jag1Rows[0] || jag2Rows[0];
+    if (!keepRow) return;
+
+    // Change the keeper's Group cell to "Both"
+    toUpdate.push({ rowIndex: keepRow.rowIndex, colIndex: col.group + 1, value: 'Both' });
+
+    // Delete all other JAG1 rows (duplicates) and all JAG2 rows
+    jag1Rows.forEach(r => { if (r !== keepRow) toDelete.push(r.rowIndex); });
+    jag2Rows.forEach(r => toDelete.push(r.rowIndex));
+  });
+
+  // Apply Group cell updates first
+  toUpdate.forEach(u => sheet.getRange(u.rowIndex, u.colIndex).setValue(u.value));
+  SpreadsheetApp.flush();
+
+  // Delete rows bottom-up so row indices don't shift during deletion
+  const sorted = [...new Set(toDelete)].sort((a, b) => b - a);
+  sorted.forEach(rowIndex => sheet.deleteRow(rowIndex));
+  SpreadsheetApp.flush();
+
+  Logger.log('migrateRosterToGroupBoth: updated ' + toUpdate.length + ' rows to Group="Both", deleted ' + sorted.length + ' rows.');
+}
+
 // ---- Utility: Rebuild Last Updated Column ----
 // Run ONCE to reset col M (Last Updated) to a clean datetime column.
 // Clears any stale content/format from data rows, re-writes the header, and applies
@@ -437,7 +507,7 @@ function _formatRosterSheet(ss) {
   // --- Group: dropdown validation ---
   if (col.group !== undefined) {
     const v = SpreadsheetApp.newDataValidation()
-      .requireValueInList(['JAG1', 'JAG2'], true).setAllowInvalid(false).build();
+      .requireValueInList(['JAG1', 'JAG2', 'Both'], true).setAllowInvalid(false).build();
     sheet.getRange(dataStartRow, col.group + 1, dataRows, 1).setDataValidation(v);
   }
 

@@ -110,13 +110,15 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.23.0 | Performance: remove per-save setNumberFormat('@') from saves (formatSheets() covers it); fix Cancelled/Replaced optimistic cache; fix member save/delete optimistic cache | n/a |
 | v1.24.0 | Performance: skip sortRosterSheet() when no date changed and no new row added | n/a |
 | v1.25.0 | Performance: fix _rosterColMap() double-call in all three data functions; skip loadData() after stable saves (no sort needed) | n/a |
+| v1.26.0 | Data structure: combined events (Youth Hour, Combined, Special, Cancelled, Replaced) now saved as single row with Group="Both" instead of two JAG1+JAG2 rows | `migrateRosterToGroupBoth()` |
 
-### Current schema (v1.25.0, 13 columns — Roster tab)
+### Current schema (v1.26.0, 13 columns — Roster tab)
 > Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
+> **Row structure**: Separated LG → 2 rows (JAG1 + JAG2). All other event types → 1 row (Group="Both").
 | Col | Sheet Header | JS field | Notes |
 |-----|-------------|----------|-------|
 | A | Date | date | Formatted `ddd dd/mm/yyyy` by formatSheets() |
-| B | Group | group | Dropdown: JAG1, JAG2 |
+| B | Group | group | Dropdown: JAG1, JAG2, Both. "Both" = applies to both groups (all non-Separated events) |
 | C | Event Type | eventType | Dropdown: Youth Hour, Separated LG, Combined, Special, Cancelled, Replaced |
 | D | Time | time | 24h text e.g. `18:30`; blank = no fixed time |
 | E | Venue | venue | |
@@ -187,8 +189,9 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 | Cancelled | N/A | Notes only |
 | Replaced | N/A | Notes only |
 
-- **Combined/Youth Hour/Special**: saves two rows (JAG1 + JAG2); shared fields use `shared-*` IDs
-- **Organiser**: optional for all types; hide in home page if empty
+- **All non-Separated events**: saves ONE row with Group="Both"; shared fields use `shared-*` IDs
+- **Separated LG**: saves TWO rows (JAG1 + JAG2); per-group fields use `{group}-*` IDs
+- **Organiser**: single shared field for combined events; per-group field for Separated LG; hide in card if empty
 
 
 ---
@@ -199,7 +202,9 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 - `resolveDisplayName(val)` — reverse lookup from display name back to full name on save
 - `buildSelect(id, options, selected)` — renders `<input>` + `<datalist>` for free-text override; options show display names
 - `suggestEventType(date)` — always drives the default event type preload (never use stored `eventType` as default)
-- After save/delete: call `finishSave(msg)` — sets `currentView='home'`, calls `setActiveNav('home')`, then `loadData()`
+- After save/delete: call `finishSave(msg, skipRefresh)` — sets `currentView='home'`, calls `setActiveNav('home')`, then `loadData()` unless `skipRefresh=true`
+- `submitForm` has 4 explicit paths: Cancelled/Replaced → "Both" entry; Special → "Both" entry; Combined → "Both" entry; Separated LG → per-group entries
+- `buildEventCard` combined section: `entries.find(e => e.group === 'Both') || entries.find(e => e.group === 'JAG1')` — handles both new and legacy formats
 - Nav updates: use `setActiveNav(view)` — do not inline the `['home','add','members'].forEach(...)` pattern
 - Card footers: use `buildCardFooter(friday, entries, ts)` — do not duplicate the Share/Edit button HTML
 - Encoding entries for `onclick`: use `encodeEntries(obj)` — replaces `JSON.stringify(obj).split('"').join('&quot;')`

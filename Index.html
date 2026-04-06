@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.25.0 (2026-04-06) -->
+  <!-- Version: 1.26.0 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -487,49 +487,43 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   }
 
   // ---- Combined layout ----
+  // Supports both new Group="Both" (single entry) and legacy JAG1+JAG2 pair formats.
   if (combined) {
-    const jag1 = entries.find(e => e.group === 'JAG1') || {};
-    const jag2 = entries.find(e => e.group === 'JAG2') || {};
-    const notes = [jag1.notes, jag2.notes].filter(Boolean).join(' · ');
-    const ts    = jag1.updatedAt || jag2.updatedAt || '';
+    const entry = entries.find(e => e.group === 'Both') || entries.find(e => e.group === 'JAG1') || entries[0] || {};
+    const notes = entry.notes || '';
+    const ts    = entry.updatedAt || '';
 
     const isSpecial = eventType === 'Special';
-    const specialTime = jag1.time || jag2.time;
     const shared = document.createElement('div');
     shared.className = 'shared-section';
     shared.innerHTML = `
       <div class="shared-label">${isSpecial ? 'Special Event' : 'Shared'}</div>
       ${isSpecial ? `
-        ${specialTime ? `<div class="venue-line">🕰️ Time: <b>${formatTime(specialTime)}</b></div>` : ''}
-        ${jag1.venue || jag2.venue ? `<div class="venue-line">🏡 Venue: <b>${jag1.venue || jag2.venue}</b></div>` : ''}
-        ${(jag1.notes || jag2.notes || '').split('\n').filter(Boolean).map(line => {
+        ${entry.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(entry.time)}</b></div>` : ''}
+        ${entry.venue ? `<div class="venue-line">🏡 Venue: <b>${entry.venue}</b></div>` : ''}
+        ${(entry.notes || '').split('\n').filter(Boolean).map(line => {
           const ci = line.indexOf(':');
           return ci > 0
             ? `<div class="venue-line"><b>${line.slice(0,ci).trim()}:</b> ${line.slice(ci+1).trim()}</div>`
             : `<div class="venue-line">${line}</div>`;
         }).join('')}` : `
-      ${jag1.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(jag1.time)}</b></div>` : ''}
-      <div class="venue-line">🏡 Venue: <b>${jag1.venue || 'TBC'}</b></div>
-      <div class="venue-line">📖 Facilitator: <b>${jag1.facilitator ? displayName(jag1.facilitator) : 'TBC'}</b></div>
-      <div class="venue-line">🎵 Praise &amp; Worship: <b>${jag1.pw ? displayName(jag1.pw) : 'TBC'}</b></div>
-      <div class="venue-line">🥘 Food: <b>${jag1.food || 'TBC'}</b></div>
-      <div class="venue-line">✍️ Reporting: <b>${jag1.reporting ? displayName(jag1.reporting) : 'TBC'}</b></div>
-      ${jag1.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(jag1.iceBreaker)}</b></div>` : ''}
+      ${entry.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(entry.time)}</b></div>` : ''}
+      <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
+      <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
+      <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
+      <div class="venue-line">🥘 Food: <b>${entry.food || 'TBC'}</b></div>
+      <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
+      ${entry.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(entry.iceBreaker)}</b></div>` : ''}
       ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
     `;
     card.appendChild(shared);
 
-    const orgSplit = document.createElement('div');
-    orgSplit.className = 'org-split';
-    [['JAG1', jag1, 'tag-jag1'], ['JAG2', jag2, 'tag-jag2']].forEach(([label, e, tag]) => {
-      const col = document.createElement('div');
-      col.className = 'org-col';
-      col.innerHTML = `
-        <span class="group-tag ${tag}">${label}</span>
-        ${e.organiser ? `<div style="font-size:.82rem;margin-top:3px;">🎙️ Organiser: <b>${displayName(e.organiser)}</b></div>` : ''}`;
-      orgSplit.appendChild(col);
-    });
-    if (eventType !== 'Special' && (jag1.organiser || jag2.organiser)) card.appendChild(orgSplit);
+    if (eventType !== 'Special' && entry.organiser) {
+      const orgDiv = document.createElement('div');
+      orgDiv.style.cssText = 'font-size:.82rem;margin-top:3px;padding:0 2px 6px;';
+      orgDiv.innerHTML = `🎙️ Organiser: <b>${displayName(entry.organiser)}</b>`;
+      card.appendChild(orgDiv);
+    }
 
     const _combEnc = encodeEntries(entries);
     if (eventType === 'Special') {
@@ -603,7 +597,10 @@ function renderAdd(prefillDate) {
   c.innerHTML = '';
 
   const isEdit         = editingEntries.length > 0;
-  const isCombinedEdit = isEdit && new Set(editingEntries.map(e => e.group)).size >= 2;
+  const isCombinedEdit = isEdit && (
+    editingEntries.some(e => e.group === 'Both') ||
+    new Set(editingEntries.map(e => e.group)).size >= 2
+  );
   const refEntry       = isEdit ? editingEntries[0] : null;
   const defaultDate    = prefillDate || (refEntry ? refEntry.date : toISODate(getNextFriday()));
   const _legacyTypeMap = { 'JAG1&2 Combined': 'Combined', 'TBD': 'Special' };
@@ -708,10 +705,15 @@ function rebuildSections(eventType) {
 
   const isEdit   = editingEntries.length > 0;
   const combined = isCombinedType(eventType);
+  const isCR     = eventType === 'Cancelled' || eventType === 'Replaced';
 
-  // Cancelled / Replaced: only show a notes field
-  if (eventType === 'Cancelled' || eventType === 'Replaced') {
-    const ref  = editingEntries[0] || {};
+  // Group selector: only relevant for new Separated LG events
+  const gs = document.getElementById('group-selector');
+  if (gs) gs.style.display = (combined || isCR || isEdit) ? 'none' : '';
+
+  // Cancelled / Replaced: only a notes field — saves as single "Both" entry
+  if (isCR) {
+    const ref  = editingEntries.find(e => e.group === 'Both') || editingEntries[0] || {};
     const icon = eventType === 'Cancelled' ? '⚠️' : '🔄';
     const msg  = eventType === 'Cancelled' ? 'Mark this LG as cancelled.' : 'Mark as replacing a regular session.';
     const div  = document.createElement('div');
@@ -727,9 +729,9 @@ function rebuildSections(eventType) {
     return;
   }
 
-  // Special: venue + user-defined custom fields (stored as "Label: Value\n..." in notes)
+  // Special: venue + user-defined custom fields — saves as single "Both" entry
   if (eventType === 'Special') {
-    const ref = editingEntries[0] || {};
+    const ref = editingEntries.find(e => e.group === 'Both') || editingEntries[0] || {};
     const allLines = (ref.notes || '').split('\n').filter(Boolean).map(line => {
       const idx = line.indexOf(':');
       return idx > 0 ? { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() } : { label: '', value: line.trim() };
@@ -756,29 +758,21 @@ function rebuildSections(eventType) {
     return;
   }
 
-  const groups = isEdit
-    ? [...new Set(editingEntries.map(e => e.group))]
-    : combined ? ['JAG1','JAG2'] : activeGroups;
-
-  // Combined events with both groups: flat shared form (Venue → Organisers → Food → P&W|Fac → Reporting → Notes)
-  if (combined && groups.length === 2) {
-    const ref  = editingEntries.find(e => e.group === 'JAG1') || editingEntries[0] || {};
-    const ref2 = editingEntries.find(e => e.group === 'JAG2') || {};
-    const div  = document.createElement('div');
+  // Combined (Youth Hour, Combined): flat shared form — saves as single "Both" entry
+  // Supports both new Group="Both" entry and legacy JAG1+JAG2 pair for backward compat.
+  if (combined) {
+    const ref = editingEntries.find(e => e.group === 'Both') ||
+                editingEntries.find(e => e.group === 'JAG1') ||
+                editingEntries[0] || {};
+    const div = document.createElement('div');
     div.innerHTML = `
       <div class="field">
         <label>🏡 Venue (Shared)</label>
         <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label>JAG1 Organiser (optional)</label>
-          ${buildSelect('JAG1-organiser', getEligible('organiser', 'JAG1', true), ref.organiser||'')}
-        </div>
-        <div class="field">
-          <label>JAG2 Organiser (optional)</label>
-          ${buildSelect('JAG2-organiser', getEligible('organiser', 'JAG2', true), ref2.organiser||'')}
-        </div>
+      <div class="field">
+        <label>Organiser (optional)</label>
+        ${buildSelect('shared-organiser', getEligible('organiser', null, true), ref.organiser||'')}
       </div>
       <div class="field">
         <label>🥘 Food (Shared)</label>
@@ -812,8 +806,9 @@ function rebuildSections(eventType) {
     return;
   }
 
-  // Separated LG or single-group combined editing: per-group sections
+  // Separated LG: per-group sections
   // Field order: Venue → Organiser|Food → P&W|Facilitator → Reporting → Notes
+  const groups = isEdit ? editingEntries.map(e => e.group) : activeGroups;
   groups.forEach((grp, idx) => {
     const entry      = editingEntries.find(e => e.group === grp) || {};
     const titleClass = grp === 'JAG1' ? 'jag1' : 'jag2';
@@ -829,7 +824,7 @@ function rebuildSections(eventType) {
       <div class="field-row">
         <div class="field">
           <label>Organiser (optional)</label>
-          ${buildSelect(grp+'-organiser', getEligible('organiser', grp, combined), entry.organiser||'')}
+          ${buildSelect(grp+'-organiser', getEligible('organiser', grp, false), entry.organiser||'')}
         </div>
         <div class="field">
           <label>🥘 Food</label>
@@ -854,11 +849,6 @@ function rebuildSections(eventType) {
         <label>Notes (optional)</label>
         <input type="text" id="${grp}-notes" placeholder="Type notes..." value="${entry.notes||''}" />
       </div>
-      ${(combined && eventType === 'Youth Hour') ? `
-      <div class="field">
-        <label>Ice Breaker (optional)</label>
-        ${buildSelect('shared-iceBreaker', getActive().map(m => m.name), entry.iceBreaker||'')}
-      </div>` : ''}
     `;
     container.appendChild(sec);
     if (idx < groups.length - 1) {
@@ -925,32 +915,39 @@ function submitForm() {
   const combined  = isCombinedType(eventType);
   if (!date) { showToast('Please select a date'); return; }
 
-  const isEdit    = editingEntries.length > 0;
-  const useShared = combined && (editingEntries.length !== 1);
+  // For all non-Separated-LG events, a single "Both" entry is saved.
+  // The existing entry is found by looking for "Both" first (new format),
+  // then falling back to JAG1 (legacy format) to support pre-migration edits.
+  const existingBoth = editingEntries.find(e => e.group === 'Both');
+  const existingJag1 = editingEntries.find(e => e.group === 'JAG1');
+  const existingJag2 = editingEntries.find(e => e.group === 'JAG2');
+  const existing     = existingBoth || existingJag1 || editingEntries[0] || {};
+  // When editing a legacy JAG1+JAG2 pair, the JAG2 row becomes an orphan after we
+  // save a single "Both" entry — delete it silently in the background.
+  const orphanRowIndex = !existingBoth && existingJag2 ? existingJag2.rowIndex : null;
 
-  // Cancelled / Replaced: save minimal entry for each group
+  // Path 1: Cancelled / Replaced — single "Both" entry, notes only
   if (eventType === 'Cancelled' || eventType === 'Replaced') {
-    const sharedNote = val('shared-notes');
-    const groups = isEdit ? editingEntries.map(e => e.group) : ['JAG1','JAG2'];
-    const toSave = groups.map(grp => {
-      const ex = editingEntries.find(e => e.group === grp) || {};
-      return {
-        rowIndex: ex.rowIndex || null,
-        date, group: grp, eventType,
-        venue: '', organiser: '', pw: '', facilitator: '', food: '', reporting: '',
-        notes: sharedNote, iceBreaker: '',
-        time:  val('f-time') || '',
-        updatedAt: new Date().toISOString()
-      };
-    });
+    const toSave = [{
+      rowIndex: existing.rowIndex || null,
+      date, group: 'Both', eventType,
+      venue: '', organiser: '', pw: '', facilitator: '', food: '', reporting: '',
+      notes: val('shared-notes'), iceBreaker: '',
+      time:  val('f-time') || '',
+      updatedAt: new Date().toISOString()
+    }];
     google.script.run
-      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSave); finishSave('Saved!', r.stable); })
+      .withSuccessHandler(r => {
+        if (!r.success) { showToast('Error: '+r.error); return; }
+        if (orphanRowIndex) google.script.run.deleteRosterEntry(orphanRowIndex);
+        _mergeEntriesIntoCache(toSave); finishSave('Saved!', r.stable);
+      })
       .withFailureHandler(e => showToast('Error: '+e.message))
       .saveRosterEntries(toSave);
     return;
   }
 
-  // Special: collect custom fields → serialize into notes
+  // Path 2: Special — single "Both" entry, venue + custom fields in notes
   if (eventType === 'Special') {
     const customFieldLines = Array.from(document.querySelectorAll('.special-field-row')).map(row => {
       const label = row.querySelector('.sf-label').value.trim();
@@ -959,50 +956,73 @@ function submitForm() {
     }).filter(Boolean);
     const commentText = val('special-comment').trim();
     if (commentText) customFieldLines.push('Comments: ' + commentText);
-    const notes    = customFieldLines.join('\n');
-    const venue    = val('shared-venue');
-    const time     = val('f-time') || '';
-    const groups   = isEdit ? editingEntries.map(e => e.group) : ['JAG1', 'JAG2'];
-    const toSaveS  = groups.map(grp => {
-      const existing = editingEntries.find(e => e.group === grp);
-      return { rowIndex: existing ? existing.rowIndex : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time, updatedAt: new Date().toISOString() };
-    });
+    const toSave = [{
+      rowIndex: existing.rowIndex || null,
+      date, group: 'Both', eventType,
+      venue: val('shared-venue'), organiser: '', pw: '', facilitator: '', food: '', reporting: '',
+      notes: customFieldLines.join('\n'), iceBreaker: '',
+      time:  val('f-time') || '',
+      updatedAt: new Date().toISOString()
+    }];
     google.script.run
-      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSaveS); finishSave('Saved!', r.stable); })
+      .withSuccessHandler(r => {
+        if (!r.success) { showToast('Error: '+r.error); return; }
+        if (orphanRowIndex) google.script.run.deleteRosterEntry(orphanRowIndex);
+        _mergeEntriesIntoCache(toSave); finishSave('Saved!', r.stable);
+      })
       .withFailureHandler(e => showToast('Error: '+e.message))
-      .saveRosterEntries(toSaveS);
+      .saveRosterEntries(toSave);
     return;
   }
 
-  const sharedVenue      = useShared ? val('shared-venue')       : null;
-  const sharedFac        = useShared ? val('shared-facilitator') : null;
-  const sharedPW         = useShared ? val('shared-pw')          : null;
-  const sharedFood       = useShared ? val('shared-food')        : null;
-  const sharedRep        = useShared ? val('shared-reporting')   : null;
-  const sharedNotes      = useShared ? val('shared-notes')       : null;
-
-
-  const groups = isEdit ? [...new Set(editingEntries.map(e => e.group))]
-               : combined ? ['JAG1','JAG2'] : activeGroups;
-
-  const toSave = groups.map(grp => {
-    const existing = editingEntries.find(e => e.group === grp);
-    return {
-      rowIndex:    existing ? existing.rowIndex : null,
-      date, group: grp, eventType,
-      venue:       sharedVenue  ?? val(grp + '-venue'),
-      organiser:   resolveDisplayName(val(grp + '-organiser')),
-      pw:          resolveDisplayName(sharedPW     ?? val(grp + '-pw')),
-      facilitator: resolveDisplayName(sharedFac    ?? val(grp + '-facilitator')),
-      food:        sharedFood   ?? val(grp + '-food'),
-      reporting:   resolveDisplayName(sharedRep    ?? val(grp + '-reporting')),
-      notes:       sharedNotes  ?? val(grp + '-notes'),
+  // Path 3: Combined (Youth Hour, Combined) — single "Both" entry, all shared fields
+  if (combined) {
+    const toSave = [{
+      rowIndex:    existing.rowIndex || null,
+      date, group: 'Both', eventType,
+      venue:       val('shared-venue'),
+      organiser:   resolveDisplayName(val('shared-organiser')),
+      pw:          resolveDisplayName(val('shared-pw')),
+      facilitator: resolveDisplayName(val('shared-facilitator')),
+      food:        val('shared-food'),
+      reporting:   resolveDisplayName(val('shared-reporting')),
+      notes:       val('shared-notes'),
       iceBreaker:  resolveDisplayName(val('shared-iceBreaker')),
+      time:        val('f-time') || '',
+      updatedAt:   new Date().toISOString()
+    }];
+    google.script.run
+      .withSuccessHandler(function(result) {
+        if (!result.success) { showToast('Error: ' + result.error); return; }
+        if (orphanRowIndex) google.script.run.deleteRosterEntry(orphanRowIndex);
+        _mergeEntriesIntoCache(toSave);
+        finishSave('Saved!', result.stable);
+      })
+      .withFailureHandler(err => showToast('Error: ' + err.message))
+      .saveRosterEntries(toSave);
+    return;
+  }
+
+  // Path 4: Separated LG — per-group entries (JAG1 / JAG2)
+  const isEdit = editingEntries.length > 0;
+  const groups = isEdit ? editingEntries.map(e => e.group) : activeGroups;
+  const toSave = groups.map(grp => {
+    const ex = editingEntries.find(e => e.group === grp) || {};
+    return {
+      rowIndex:    ex.rowIndex || null,
+      date, group: grp, eventType,
+      venue:       val(grp + '-venue'),
+      organiser:   resolveDisplayName(val(grp + '-organiser')),
+      pw:          resolveDisplayName(val(grp + '-pw')),
+      facilitator: resolveDisplayName(val(grp + '-facilitator')),
+      food:        val(grp + '-food'),
+      reporting:   resolveDisplayName(val(grp + '-reporting')),
+      notes:       val(grp + '-notes'),
+      iceBreaker:  '',
       time:        val('f-time') || '',
       updatedAt:   new Date().toISOString()
     };
   });
-
   google.script.run
     .withSuccessHandler(function(result) {
       if (!result.success) { showToast('Error: ' + result.error); return; }
@@ -1523,7 +1543,7 @@ function shareEvent(friday, entries) {
 
 function shareCombinedWithNames(friday, entries) {
   const entriesArr = Array.isArray(entries) ? entries : [entries];
-  const entry      = entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
+  const entry      = entriesArr.find(e => e.group === 'Both') || entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
   const eventType  = entry.eventType || '';
 
   const allActive    = allMembers.filter(m => m.active);
