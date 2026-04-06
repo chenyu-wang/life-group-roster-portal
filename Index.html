@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.24.0 (2026-04-06) -->
+  <!-- Version: 1.25.0 (2026-04-06) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -279,13 +279,13 @@ function _mergeEntriesIntoCache(savedEntries) {
   _scheduleDatesCache = null;
 }
 
-function finishSave(msg) {
+function finishSave(msg, skipRefresh) {
   showToast(msg || 'Saved!');
   editingEntries = [];
   currentView = 'home';
   setActiveNav('home');
-  renderHome();   // show home immediately with updated cached data
-  loadData();     // refresh data in background
+  renderHome();
+  if (!skipRefresh) loadData(); // skip when server confirmed rowIndices are stable
 }
 
 function encodeEntries(obj) {
@@ -944,7 +944,7 @@ function submitForm() {
       };
     });
     google.script.run
-      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSave); finishSave('Saved!'); })
+      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSave); finishSave('Saved!', r.stable); })
       .withFailureHandler(e => showToast('Error: '+e.message))
       .saveRosterEntries(toSave);
     return;
@@ -968,7 +968,7 @@ function submitForm() {
       return { rowIndex: existing ? existing.rowIndex : null, date, group: grp, eventType, venue, organiser: '', pw: '', facilitator: '', food: '', reporting: '', notes, iceBreaker: '', time, updatedAt: new Date().toISOString() };
     });
     google.script.run
-      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSaveS); finishSave('Saved!'); })
+      .withSuccessHandler(r => { if (!r.success) { showToast('Error: '+r.error); return; } _mergeEntriesIntoCache(toSaveS); finishSave('Saved!', r.stable); })
       .withFailureHandler(e => showToast('Error: '+e.message))
       .saveRosterEntries(toSaveS);
     return;
@@ -1007,7 +1007,7 @@ function submitForm() {
     .withSuccessHandler(function(result) {
       if (!result.success) { showToast('Error: ' + result.error); return; }
       _mergeEntriesIntoCache(toSave);
-      finishSave('Saved!');
+      finishSave('Saved!', result.stable);
     })
     .withFailureHandler(err => showToast('Error: ' + err.message))
     .saveRosterEntries(toSave);

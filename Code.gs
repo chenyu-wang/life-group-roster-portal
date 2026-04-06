@@ -1,10 +1,10 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.24.0 (2026-04-06)
+// Version: 1.25.0 (2026-04-06)
 // ============================================================
 
-const VERSION      = '1.24.0';
+const VERSION      = '1.25.0';
 const VERSION_DATE = '2026-04-06';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
@@ -68,8 +68,9 @@ function getRosterEntries(ss) {
 
   const data = sheet.getDataRange().getValues();
   // Auto-detect header row: if row 1 has no recognized column names, it's the notice row
-  const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
-  const col  = _rosterColMap(data[headerRowIdx]);
+  const firstRowMap  = _rosterColMap(data[0]);
+  const headerRowIdx = Object.keys(firstRowMap).length > 0 ? 0 : 1;
+  const col          = headerRowIdx === 0 ? firstRowMap : _rosterColMap(data[headerRowIdx]);
   const tz   = Session.getScriptTimeZone();
   const g    = function(row, key) { return col[key] !== undefined ? row[col[key]] : ''; };
   const entries = [];
@@ -156,8 +157,9 @@ function saveRosterEntry(entry) {
     // Building rowData by column position makes writes column-order agnostic —
     // reordering columns in the sheet never breaks saves.
     const data         = sheet.getDataRange().getValues();
-    const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
-    const col          = _rosterColMap(data[headerRowIdx]);
+    const firstRowMap  = _rosterColMap(data[0]);
+    const headerRowIdx = Object.keys(firstRowMap).length > 0 ? 0 : 1;
+    const col          = headerRowIdx === 0 ? firstRowMap : _rosterColMap(data[headerRowIdx]);
     const numCols      = data[headerRowIdx].length;
 
     // Sort only when the row order can change: new row or date edited.
@@ -193,8 +195,11 @@ function saveRosterEntry(entry) {
     }
 
     SpreadsheetApp.flush(); // commit writes before sort so getLastColumn() sees col M
-    if (needsSort) sortRosterSheet(sheet);
-    return { success: true };
+    if (needsSort) {
+      sortRosterSheet(sheet);
+      return { success: true };
+    }
+    return { success: true, stable: true }; // rowIndices unchanged — client can skip loadData()
   } catch (e) {
     return { success: false, error: e.toString() };
   }
@@ -209,8 +214,9 @@ function saveRosterEntries(entries) {
     if (!sheet) return { success: false, error: 'Roster sheet not found' };
 
     const data         = sheet.getDataRange().getValues();
-    const headerRowIdx = Object.keys(_rosterColMap(data[0])).length > 0 ? 0 : 1;
-    const col          = _rosterColMap(data[headerRowIdx]);
+    const firstRowMap  = _rosterColMap(data[0]);
+    const headerRowIdx = Object.keys(firstRowMap).length > 0 ? 0 : 1;
+    const col          = headerRowIdx === 0 ? firstRowMap : _rosterColMap(data[headerRowIdx]);
     const numCols      = data[headerRowIdx].length;
 
     // Sort only when the row order can change: any new row or any entry with a changed date.
@@ -253,8 +259,11 @@ function saveRosterEntries(entries) {
     });
 
     SpreadsheetApp.flush(); // commit writes before sort so getLastColumn() sees col M
-    if (needsSort) sortRosterSheet(sheet);
-    return { success: true };
+    if (needsSort) {
+      sortRosterSheet(sheet);
+      return { success: true };
+    }
+    return { success: true, stable: true }; // rowIndices unchanged — client can skip loadData()
   } catch (e) {
     return { success: false, error: e.toString() };
   }
