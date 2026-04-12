@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.27.0 (2026-04-06) -->
+  <!-- Version: 1.28.1 (2026-04-12) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -199,9 +199,16 @@ let editingMember  = null;
 let dashPast   = 4;   // how many past weeks shown in dashboard
 let dashFuture = 4;   // how many future weeks shown in dashboard
 let _dashBusy  = false;
-let _scheduleDatesCache = null;  // D: invalidated whenever allEntries changes
-let _dupFirstNamesCache = null;  // F: invalidated whenever allMembers changes
+let _scheduleDatesCache  = null;  // D: invalidated whenever allEntries changes
+let _entriesByDateCache  = null;  // invalidated whenever allEntries changes
+let _dupFirstNamesCache  = null;  // F: invalidated whenever allMembers changes
 let _loadGen = 0;               // incremented on each loadData() call; stale responses are discarded
+
+// HTML-escape any string before inserting into innerHTML.
+function _esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 // =============================================
 // Init
@@ -239,7 +246,8 @@ function loadData() {
       allEntries = data.entries || [];
       allMembers = data.members || [];
       _scheduleDatesCache = null;  // D: invalidate on fresh data
-      _dupFirstNamesCache  = null;  // F: invalidate on fresh data
+      _entriesByDateCache = null;
+      _dupFirstNamesCache = null;  // F: invalidate on fresh data
       const loadingEl = document.getElementById('loading-msg');
       if (loadingEl) loadingEl.remove();
       if (data.version) {
@@ -253,7 +261,7 @@ function loadData() {
       const loadingEl = document.getElementById('loading-msg');
       if (loadingEl) {
         loadingEl.innerHTML = '<div style="color:#991b1b;font-weight:700;margin-bottom:8px;">Failed to load roster</div>'
-          + '<div style="color:#7f1d1d;font-size:.8rem;margin-bottom:12px;">' + (err.message || String(err)) + '</div>'
+          + '<div style="color:#7f1d1d;font-size:.8rem;margin-bottom:12px;">' + _esc(err.message || String(err)) + '</div>'
           + '<button onclick="loadData()" style="border:none;background:#6366f1;color:#fff;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;">Retry</button>';
         loadingEl.style.cssText = 'background:#fee2e2;border-radius:10px;padding:20px;margin:16px 0;text-align:center;';
       }
@@ -283,6 +291,7 @@ function _mergeEntriesIntoCache(savedEntries) {
     else allEntries.push(saved);
   });
   _scheduleDatesCache = null;
+  _entriesByDateCache = null;
 }
 
 function finishSave(msg, skipRefresh) {
@@ -399,11 +408,14 @@ function renderHome(resetWindow) {
     c.appendChild(tip);
   }
 
-  const entriesByDate = new Map();
-  allEntries.forEach(e => {
-    if (!entriesByDate.has(e.date)) entriesByDate.set(e.date, []);
-    entriesByDate.get(e.date).push(e);
-  });
+  if (!_entriesByDateCache) {
+    _entriesByDateCache = new Map();
+    allEntries.forEach(e => {
+      if (!_entriesByDateCache.has(e.date)) _entriesByDateCache.set(e.date, []);
+      _entriesByDateCache.get(e.date).push(e);
+    });
+  }
+  const entriesByDate = _entriesByDateCache;
 
   let shownYear = null;
   fridays.slice(startIdx, endIdx + 1).forEach(friday => {
@@ -462,7 +474,8 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   const combined  = isCombinedType(eventType);
   const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
   const dateSub = combined ? (eventType === 'Youth Hour' ? 'JAG1 + JAG2 + Older Sunday School Students' : eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
-  const timeStr = (entries.find(e => e.time) || {}).time ? formatTime(entries.find(e => e.time).time) : '';
+  const _timeEntry = entries.find(e => e.time);
+  const timeStr = _timeEntry ? formatTime(_timeEntry.time) : '';
   const dateSub2 = [timeStr, dateSub].filter(Boolean).join(' · ');
 
   // ---- Header ----
@@ -474,7 +487,7 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
         <div class="date-label">${formatDateLong(friday)}</div>
         ${dateSub2 ? `<div class="date-sub">${dateSub2}</div>` : ''}
       </div>
-      <span class="event-badge ${eventTypeBadge(eventType)}">${eventType}</span>
+      <span class="event-badge ${eventTypeBadge(eventType)}">${_esc(eventType)}</span>
     </div>`;
   card.appendChild(hdr);
 
@@ -482,10 +495,10 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   if (isCancelledOrReplaced) {
     const typeClass = eventType === 'Cancelled' ? 'is-cancelled' : 'is-replaced';
     const icon = eventType === 'Cancelled' ? '⚠️' : '🔄';
-    const note = entries[0] && entries[0].notes ? ` · ${entries[0].notes}` : '';
+    const note = entries[0] && entries[0].notes ? ' · ' + _esc(entries[0].notes) : '';
     const row = document.createElement('div');
     row.className = `cancelled-row ${typeClass}`;
-    row.innerHTML = `${icon} ${eventType}${note}`;
+    row.innerHTML = `${icon} ${_esc(eventType)}${note}`;
     card.appendChild(row);
     const ts = entries[0] && entries[0].updatedAt ? entries[0].updatedAt : '';
     card.appendChild(buildCardFooter(friday, entries, ts));
@@ -506,28 +519,28 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       <div class="shared-label">${isSpecial ? 'Special Event' : 'Shared'}</div>
       ${isSpecial ? `
         ${entry.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(entry.time)}</b></div>` : ''}
-        ${entry.venue ? `<div class="venue-line">🏡 Venue: <b>${entry.venue}</b></div>` : ''}
+        ${entry.venue ? `<div class="venue-line">🏡 Venue: <b>${_esc(entry.venue)}</b></div>` : ''}
         ${(entry.notes || '').split('\n').filter(Boolean).map(line => {
           const ci = line.indexOf(':');
           return ci > 0
-            ? `<div class="venue-line"><b>${line.slice(0,ci).trim()}:</b> ${line.slice(ci+1).trim()}</div>`
-            : `<div class="venue-line">${line}</div>`;
+            ? `<div class="venue-line"><b>${_esc(line.slice(0,ci).trim())}:</b> ${_esc(line.slice(ci+1).trim())}</div>`
+            : `<div class="venue-line">${_esc(line)}</div>`;
         }).join('')}` : `
       ${entry.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(entry.time)}</b></div>` : ''}
-      <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
-      <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
-      <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
-      <div class="venue-line">🥘 Food: <b>${entry.food || 'TBC'}</b></div>
-      <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
-      ${entry.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${displayName(entry.iceBreaker)}</b></div>` : ''}
-      ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${notes}</div>` : ''}`}
+      <div class="venue-line">🏡 Venue: <b>${_esc(entry.venue) || 'TBC'}</b></div>
+      <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? _esc(displayName(entry.facilitator)) : 'TBC'}</b></div>
+      <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? _esc(displayName(entry.pw)) : 'TBC'}</b></div>
+      <div class="venue-line">🥘 Food: <b>${_esc(entry.food) || 'TBC'}</b></div>
+      <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? _esc(displayName(entry.reporting)) : 'TBC'}</b></div>
+      ${entry.iceBreaker ? `<div class="venue-line">🧊 Ice Breaker: <b>${_esc(displayName(entry.iceBreaker))}</b></div>` : ''}
+      ${notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:4px;">📝 ${_esc(notes)}</div>` : ''}`}
     `;
     card.appendChild(shared);
 
     if (eventType !== 'Special' && entry.organiser) {
       const orgDiv = document.createElement('div');
       orgDiv.style.cssText = 'font-size:.82rem;margin-top:3px;padding:0 2px 6px;';
-      orgDiv.innerHTML = `🎙️ Organiser: <b>${displayName(entry.organiser)}</b>`;
+      orgDiv.innerHTML = `🎙️ Organiser: <b>${_esc(displayName(entry.organiser))}</b>`;
       card.appendChild(orgDiv);
     }
 
@@ -554,20 +567,20 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
       const encOne = encodeEntries([entry]);
       gr.innerHTML = `
         <div class="sep-group-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;">
-          <span class="group-tag ${tag}">${entry.group}</span>
+          <span class="group-tag ${tag}">${_esc(entry.group)}</span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="share-btn" onclick="shareGroupWithNames(new Date('${toISODate(friday)}'), ${encOne})">📤 ${entry.group} + 👥</button>
-            <button class="edit-btn" onclick="openEditEntries(${encOne})">✏️ Edit ${entry.group}</button>
+            <button class="share-btn" onclick="shareGroupWithNames(new Date('${toISODate(friday)}'), ${encOne})">📤 ${_esc(entry.group)} + 👥</button>
+            <button class="edit-btn" onclick="openEditEntries(${encOne})">✏️ Edit ${_esc(entry.group)}</button>
           </div>
         </div>
         ${entry.time ? `<div class="venue-line">🕰️ Time: <b>${formatTime(entry.time)}</b></div>` : ''}
-        <div class="venue-line">🏡 Venue: <b>${entry.venue || 'TBC'}</b></div>
-        ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${displayName(entry.organiser)}</b></div>` : ''}
-        <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? displayName(entry.pw) : 'TBC'}</b></div>
-        <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? displayName(entry.facilitator) : 'TBC'}</b></div>
-        <div class="venue-line">🥘 Food: <b>${entry.food || 'TBC'}</b></div>
-        <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? displayName(entry.reporting) : 'TBC'}</b></div>
-        ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${entry.notes}</div>` : ''}
+        <div class="venue-line">🏡 Venue: <b>${_esc(entry.venue) || 'TBC'}</b></div>
+        ${entry.organiser ? `<div class="venue-line">🎙️ Organiser: <b>${_esc(displayName(entry.organiser))}</b></div>` : ''}
+        <div class="venue-line">🎵 Praise &amp; Worship: <b>${entry.pw ? _esc(displayName(entry.pw)) : 'TBC'}</b></div>
+        <div class="venue-line">📖 Facilitator: <b>${entry.facilitator ? _esc(displayName(entry.facilitator)) : 'TBC'}</b></div>
+        <div class="venue-line">🥘 Food: <b>${_esc(entry.food) || 'TBC'}</b></div>
+        <div class="venue-line">✍️ Reporting: <b>${entry.reporting ? _esc(displayName(entry.reporting)) : 'TBC'}</b></div>
+        ${entry.notes ? `<div style="font-size:.72rem;color:#94a3b8;margin-top:3px;">📝 ${_esc(entry.notes)}</div>` : ''}
         ${entry.updatedAt ? `<div style="font-size:.7rem;color:#94a3b8;margin-top:5px;">Updated ${formatUpdatedAt(entry.updatedAt)}</div>` : ''}`;
       card.appendChild(gr);
     });
@@ -626,7 +639,7 @@ function renderAdd(prefillDate) {
     const idxList = editingEntries.map(e => e.rowIndex).join(',');
     deleteBtn = `<button class="btn btn-danger" onclick="confirmDeleteEntries([${idxList}], '${refEntry.date}', 'combined event')">Delete This Event</button>`;
   } else if (isEdit) {
-    deleteBtn = `<button class="btn btn-danger" onclick="confirmDeleteEntries([${refEntry.rowIndex}], '${refEntry.date}', '${refEntry.group}')">Delete This Entry</button>`;
+    deleteBtn = `<button class="btn btn-danger" onclick="confirmDeleteEntries([${refEntry.rowIndex}], '${refEntry.date}', ${encodeEntries(refEntry.group)})">Delete This Entry</button>`;
   }
 
   const wrap = document.createElement('div');
@@ -645,7 +658,7 @@ function renderAdd(prefillDate) {
         </div>
         <div class="field">
           <label>Time</label>
-          <input type="time" id="f-time" value="${defaultTime}" style="background:#fff;color:#1e293b;-webkit-appearance:none;appearance:none;width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:.9rem;" />
+          <input type="time" id="f-time" value="${_esc(defaultTime)}" style="background:#fff;color:#1e293b;-webkit-appearance:none;appearance:none;width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:.9rem;" />
         </div>
       </div>
 
@@ -729,7 +742,7 @@ function rebuildSections(eventType) {
       </div>
       <div class="field">
         <label>Notes / Reason</label>
-        <input type="text" id="shared-notes" placeholder="Type reason..." value="${ref.notes||''}" />
+        <input type="text" id="shared-notes" placeholder="Type reason..." value="${_esc(ref.notes)}" />
       </div>`;
     container.appendChild(div);
     return;
@@ -749,11 +762,11 @@ function rebuildSections(eventType) {
     div.innerHTML = `
       <div class="field">
         <label>🏡 Venue (optional)</label>
-        <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
+        <input type="text" id="shared-venue" placeholder="Type venue..." value="${_esc(ref.venue)}" />
       </div>
       <div class="field">
         <label>💬 Comments (optional)</label>
-        <input type="text" id="special-comment" placeholder="General notes or comments..." value="${commentText.replace(/"/g,'&quot;')}" />
+        <input type="text" id="special-comment" placeholder="General notes or comments..." value="${_esc(commentText)}" />
       </div>
       <div id="special-fields-container"></div>
       <button type="button" class="add-field-btn" onclick="addSpecialField()">+ Add Field</button>`;
@@ -774,7 +787,7 @@ function rebuildSections(eventType) {
     div.innerHTML = `
       <div class="field">
         <label>🏡 Venue (Shared)</label>
-        <input type="text" id="shared-venue" placeholder="Type venue..." value="${ref.venue||''}" />
+        <input type="text" id="shared-venue" placeholder="Type venue..." value="${_esc(ref.venue)}" />
       </div>
       <div class="field">
         <label>Organiser (optional)</label>
@@ -791,7 +804,7 @@ function rebuildSections(eventType) {
         </div>
         <div class="field">
           <label>📖 Facilitator</label>
-          ${buildSelect('shared-facilitator', getEligibleFacilitators(eventType, null), ref.facilitator||'')}
+          ${buildSelect('shared-facilitator', getEligibleFacilitators(null), ref.facilitator||'')}
         </div>
       </div>
       <div class="field">
@@ -800,12 +813,12 @@ function rebuildSections(eventType) {
       </div>
       <div class="field">
         <label>Notes (optional)</label>
-        <input type="text" id="shared-notes" placeholder="Type notes..." value="${ref.notes||''}" />
+        <input type="text" id="shared-notes" placeholder="Type notes..." value="${_esc(ref.notes)}" />
       </div>
       ${eventType === 'Youth Hour' ? `
       <div class="field">
         <label>Ice Breaker (optional)</label>
-        ${buildSelect('shared-iceBreaker', getActive().map(m => m.name), ref.iceBreaker||'')}
+        ${buildSelect('shared-iceBreaker', getEligible('iceBreaker', null, true), ref.iceBreaker||'')}
       </div>` : ''}
     `;
     container.appendChild(div);
@@ -825,7 +838,7 @@ function rebuildSections(eventType) {
       <div class="form-section-title ${titleClass}">${grp}</div>
       <div class="field">
         <label>🏡 Venue</label>
-        <input type="text" id="${grp}-venue" placeholder="Type venue..." value="${entry.venue||''}" />
+        <input type="text" id="${grp}-venue" placeholder="Type venue..." value="${_esc(entry.venue)}" />
       </div>
       <div class="field-row">
         <div class="field">
@@ -844,7 +857,7 @@ function rebuildSections(eventType) {
         </div>
         <div class="field">
           <label>📖 Facilitator</label>
-          ${buildSelect(grp+'-facilitator', getEligibleFacilitators(eventType, grp), entry.facilitator||'')}
+          ${buildSelect(grp+'-facilitator', getEligibleFacilitators(grp), entry.facilitator||'')}
         </div>
       </div>
       <div class="field">
@@ -853,7 +866,7 @@ function rebuildSections(eventType) {
       </div>
       <div class="field">
         <label>Notes (optional)</label>
-        <input type="text" id="${grp}-notes" placeholder="Type notes..." value="${entry.notes||''}" />
+        <input type="text" id="${grp}-notes" placeholder="Type notes..." value="${_esc(entry.notes)}" />
       </div>
     `;
     container.appendChild(sec);
@@ -870,8 +883,8 @@ function addSpecialField(label, value, container) {
   const row = document.createElement('div');
   row.className = 'special-field-row';
   row.innerHTML = `
-    <input type="text" class="sf-label" placeholder="Field name" value="${(label||'').replace(/"/g,'&quot;')}" style="background:#fff;color:#1e293b;" />
-    <input type="text" class="sf-value" placeholder="Value" value="${(value||'').replace(/"/g,'&quot;')}" style="background:#fff;color:#1e293b;" />
+    <input type="text" class="sf-label" placeholder="Field name" value="${_esc(label)}" style="background:#fff;color:#1e293b;" />
+    <input type="text" class="sf-value" placeholder="Value" value="${_esc(value)}" style="background:#fff;color:#1e293b;" />
     <button onclick="this.closest('.special-field-row').remove()">✕</button>`;
   c.appendChild(row);
 }
@@ -881,9 +894,9 @@ function buildSelect(id, options, selectedValue) {
   const inputVal = selectedValue ? displayName(selectedValue) : '';
   const opts = options.map(n => {
     const dn = displayName(n);
-    return `<div class="dd-opt" onmousedown="event.preventDefault();ddPick('${id}','${listId}','${dn.replace(/'/g,"&#39;")}')">${dn}</div>`;
+    return `<div class="dd-opt" onmousedown="event.preventDefault();ddPick('${id}','${listId}',${encodeEntries(dn)})">${_esc(dn)}</div>`;
   }).join('');
-  return `<div class="dd-wrap"><input type="text" id="${id}" value="${inputVal}" placeholder="Select or type..." autocomplete="off" style="background:#fff;color:#1e293b;" oninput="ddFilter('${id}','${listId}')" onfocus="ddOpen('${listId}')" onblur="setTimeout(()=>ddClose('${listId}'),150)" /><div id="${listId}" class="dd-list">${opts}</div></div>`;
+  return `<div class="dd-wrap"><input type="text" id="${id}" value="${_esc(inputVal)}" placeholder="Select or type..." autocomplete="off" style="background:#fff;color:#1e293b;" oninput="ddFilter('${id}','${listId}')" onfocus="ddOpen('${listId}')" onblur="setTimeout(()=>ddClose('${listId}'),150)" /><div id="${listId}" class="dd-list">${opts}</div></div>`;
 }
 
 function ddOpen(listId) {
@@ -920,6 +933,9 @@ function submitForm() {
   const eventType = document.getElementById('f-type').value;
   const combined  = isCombinedType(eventType);
   if (!date) { showToast('Please select a date'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { showToast('Invalid date — use YYYY-MM-DD format'); return; }
+  const _timeVal = val('f-time');
+  if (_timeVal && !/^\d{2}:\d{2}$/.test(_timeVal)) { showToast('Invalid time — use HH:MM format'); return; }
 
   // For all non-Separated-LG events, a single "Both" entry is saved.
   // The existing entry is found by looking for "Both" first (new format),
@@ -1069,7 +1085,7 @@ function confirmDeleteEntries(rowIndices, date, label) {
   openModal(`
     <div style="text-align:center;padding:8px 0 16px;">
       <div style="font-size:2rem;margin-bottom:8px;">&#128465;</div>
-      <div style="font-weight:700;margin-bottom:6px;">Delete ${label} on ${date}?</div>
+      <div style="font-weight:700;margin-bottom:6px;">Delete ${_esc(label)} on ${_esc(date)}?</div>
       <div style="color:#64748b;font-size:.85rem;margin-bottom:20px;">This cannot be undone.</div>
       <button class="btn btn-danger" onclick="doDeleteEntries(${JSON.stringify(rowIndices)})">Yes, Delete</button>
       <button class="btn btn-secondary" style="margin-top:8px;" onclick="closeModal()">Cancel</button>
@@ -1142,10 +1158,10 @@ function buildMemberCard(m) {
   const chipsHtml = roles.map(r => `<span class="role-chip ${m.active?'':'inactive-badge'}">${r}</span>`).join('');
 
   card.innerHTML = `
-    <div class="member-avatar" style="background:${groupColor};">${initials}</div>
+    <div class="member-avatar" style="background:${groupColor};">${_esc(initials)}</div>
     <div class="member-info">
-      <div class="member-name">${m.name} ${m.active ? '' : '<span style="color:#94a3b8;font-size:.75rem;">(inactive)</span>'}</div>
-      <div class="member-meta">${m.group} · ${m.roleType}</div>
+      <div class="member-name">${_esc(m.name)} ${m.active ? '' : '<span style="color:#94a3b8;font-size:.75rem;">(inactive)</span>'}</div>
+      <div class="member-meta">${_esc(m.group)} · ${_esc(m.roleType)}</div>
       <div class="member-roles">${chipsHtml || '<span style="color:#94a3b8;font-size:.7rem;">No roles assigned</span>'}</div>
     </div>
     <button class="member-edit" onclick="openMemberForm(${encodeEntries(m)})">
@@ -1164,7 +1180,7 @@ function openMemberForm(member) {
 
     <div class="field">
       <label>Name</label>
-      <input type="text" id="m-name" value="${m.name||''}" placeholder="Full name" />
+      <input type="text" id="m-name" value="${_esc(m.name)}" placeholder="Full name" />
     </div>
 
     <div class="field-row">
@@ -1208,7 +1224,7 @@ function openMemberForm(member) {
     </div>
 
     <button class="btn btn-primary" onclick="submitMember()">Save Member</button>
-    ${member ? `<button class="btn btn-danger" style="margin-top:8px;" onclick="confirmDeleteMember(${member.rowIndex}, '${member.name}')">Remove Member</button>` : ''}
+    ${member ? `<button class="btn btn-danger" style="margin-top:8px;" onclick="confirmDeleteMember(${member.rowIndex}, ${encodeEntries(member.name)})">Remove Member</button>` : ''}
     <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
   `);
   updateRoleToggles();
@@ -1259,7 +1275,7 @@ function confirmDeleteMember(rowIndex, name) {
   openModal(`
     <div style="text-align:center;padding:8px 0 16px;">
       <div style="font-size:2rem;margin-bottom:8px;">👤</div>
-      <div style="font-weight:700;margin-bottom:6px;">Remove ${name}?</div>
+      <div style="font-weight:700;margin-bottom:6px;">Remove ${_esc(name)}?</div>
       <div style="color:#64748b;font-size:.85rem;margin-bottom:20px;">They won't appear in future dropdowns.</div>
       <button class="btn btn-danger" onclick="deleteMemberRow(${rowIndex})">Yes, Remove</button>
       <button class="btn btn-secondary" style="margin-top:8px;" onclick="closeModal()">Cancel</button>
@@ -1331,12 +1347,14 @@ function getEligible(role, group, isCombined) {
         return active.filter(m => m.canReport).map(m => m.name);
       }
       return active.filter(m => m.canReport && groupMatch(m, group)).map(m => m.name);
+    case 'iceBreaker':
+      return active.map(m => m.name);
     default:
       return [];
   }
 }
 
-function getEligibleFacilitators(eventType, group) {
+function getEligibleFacilitators(group) {
   const active = getActive();
   if (!group) {
     // Combined: any member that can facilitate
