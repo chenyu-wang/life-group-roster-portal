@@ -112,6 +112,7 @@ Only required when adding a new column or renaming an existing header. Steps:
 | v1.25.0 | Performance: fix _rosterColMap() double-call in all three data functions; skip loadData() after stable saves (no sort needed) | n/a |
 | v1.26.0 | Data structure: combined events (Youth Hour, Combined, Special, Cancelled, Replaced) now saved as single row with Group="Both" instead of two JAG1+JAG2 rows | `migrateRosterToGroupBoth()` |
 | v1.27.0 | Fix `getEligible('organiser', null, true)` for combined form; make load failure errors prominent with retry button | n/a |
+| v1.28.0 | Attendee selection panel in Add/Edit form; attendance cached in `attendanceCache` (in-memory, keyed by ISO date); share messages filtered to selected attendees | n/a |
 
 ### Current schema (v1.27.0, 13 columns — Roster tab)
 > Row 1: portal notice (merged, frozen). Row 2: column headers. Row 3+: data.
@@ -206,6 +207,9 @@ Run `formatSheets()` from the Apps Script editor any time to apply human-readabl
 - After save/delete: call `finishSave(msg, skipRefresh)` — sets `currentView='home'`, calls `setActiveNav('home')`, then `loadData()` unless `skipRefresh=true`
 - `submitForm` has 4 explicit paths: Cancelled/Replaced → "Both" entry; Special → "Both" entry; Combined → "Both" entry; Separated LG → per-group entries
 - `buildEventCard` combined section: `entries.find(e => e.group === 'Both') || entries.find(e => e.group === 'JAG1')` — handles both new and legacy formats
+- `attendanceCache[dateISO]` — `Set<memberName>` recorded when form is saved; used by share functions via `getActiveForShare(dateISO)`. If absent, falls back to all active members
+- `buildAttendeePanel(date, eventType)` — renders collapsible checkbox panel in Add/Edit form; pre-checks all active members by default (opt-out model); pre-restores from cache on re-edit
+- `getActiveForShare(dateISO)` — returns the member list for share messages, filtered by cache when present
 - Nav updates: use `setActiveNav(view)` — do not inline the `['home','add','members'].forEach(...)` pattern
 - Card footers: use `buildCardFooter(friday, entries, ts)` — do not duplicate the Share/Edit button HTML
 - Encoding entries for `onclick`: use `encodeEntries(obj)` — replaces `JSON.stringify(obj).split('"').join('&quot;')`

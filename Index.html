@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.27.0 (2026-04-06) -->
+  <!-- Version: 1.28.0 (2026-04-12) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -125,6 +125,18 @@
     .special-field-row button { border: none; background: #fee2e2; color: #dc2626; border-radius: 6px; padding: 6px 10px; font-size: .8rem; cursor: pointer; white-space: nowrap; }
     .add-field-btn { border: 2px dashed #e2e8f0; background: none; border-radius: 8px; padding: 8px; width: 100%; color: #6366f1; font-weight: 700; font-size: .82rem; cursor: pointer; margin-top: 4px; }
 
+    /* ---- Attendee Panel ---- */
+    .attendee-panel { border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 16px; background: #f8fafc; overflow: hidden; }
+    .attendee-panel > summary { font-size: .85rem; font-weight: 600; color: #475569; cursor: pointer; user-select: none; list-style: none; display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+    .attendee-panel > summary::-webkit-details-marker { display: none; }
+    .attendee-panel[open] > summary { border-bottom: 1px solid #e2e8f0; }
+    .attendee-panel-body { padding: 8px 12px 12px; }
+    .att-group-label { font-size: .73rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin: 10px 0 6px; }
+    .att-row { display: flex; flex-wrap: wrap; gap: 5px 12px; }
+    .att-row label { display: flex; align-items: center; gap: 5px; font-size: .84rem; color: #1e293b; cursor: pointer; font-weight: 400; margin-bottom: 0; }
+    .att-actions { display: flex; gap: 10px; margin-bottom: 4px; }
+    .att-toggle { font-size: .75rem; color: #6366f1; cursor: pointer; background: none; border: none; padding: 0; text-decoration: underline; font-weight: 600; }
+
     /* ---- Custom Dropdown ---- */
     .dd-wrap { position: relative; }
     .dd-list { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #c7d2fe; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.12); z-index: 60; max-height: 200px; overflow-y: auto; margin-top: 2px; }
@@ -202,6 +214,7 @@ let _dashBusy  = false;
 let _scheduleDatesCache = null;  // D: invalidated whenever allEntries changes
 let _dupFirstNamesCache = null;  // F: invalidated whenever allMembers changes
 let _loadGen = 0;               // incremented on each loadData() call; stale responses are discarded
+let attendanceCache = {};        // keyed by ISO date; value: Set<memberName> of attending members for that event
 
 // =============================================
 // Init
@@ -809,6 +822,8 @@ function rebuildSections(eventType) {
       </div>` : ''}
     `;
     container.appendChild(div);
+    const _attDateC = document.getElementById('f-date') && document.getElementById('f-date').value;
+    if (_attDateC) container.appendChild(buildAttendeePanel(_attDateC, eventType));
     return;
   }
 
@@ -861,6 +876,8 @@ function rebuildSections(eventType) {
       container.appendChild(Object.assign(document.createElement('hr'), { className: 'divider' }));
     }
   });
+  const _attDateS = document.getElementById('f-date') && document.getElementById('f-date').value;
+  if (_attDateS) container.appendChild(buildAttendeePanel(_attDateS, eventType));
 }
 
 // Renders a text input with datalist so leaders can pick from the list OR type a custom name.
@@ -920,6 +937,7 @@ function submitForm() {
   const eventType = document.getElementById('f-type').value;
   const combined  = isCombinedType(eventType);
   if (!date) { showToast('Please select a date'); return; }
+  saveAttendanceFromForm(date);
 
   // For all non-Separated-LG events, a single "Both" entry is saved.
   // The existing entry is found by looking for "Both" first (new format),
@@ -1476,6 +1494,101 @@ function formatShareDate(d) {
 }
 
 // =============================================
+// Attendance Cache
+// =============================================
+
+// Returns members eligible for the share message for a given date.
+// If attendance was recorded (via the form), only those members are returned.
+// Falls back to all active members so share always works even without an attendance pass.
+function getActiveForShare(dateISO) {
+  const cached = attendanceCache[dateISO];
+  if (!cached) return allMembers.filter(m => m.active);
+  return allMembers.filter(m => m.active && cached.has(m.name));
+}
+
+function saveAttendanceFromForm(date) {
+  const cbs = document.querySelectorAll('input[name="att"]');
+  if (!cbs.length) return; // attendee panel not shown (Cancelled/Replaced/Special)
+  attendanceCache[date] = new Set(Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value));
+}
+
+function updateAttCount() {
+  const total   = document.querySelectorAll('input[name="att"]').length;
+  const checked = document.querySelectorAll('input[name="att"]:checked').length;
+  const el = document.getElementById('att-count');
+  if (el) el.textContent = '(' + checked + '/' + total + ')';
+}
+
+function setAllAtt(state) {
+  document.querySelectorAll('input[name="att"]').forEach(function(cb) { cb.checked = state; });
+  updateAttCount();
+}
+
+function buildAttendeePanel(date, eventType) {
+  const cached = attendanceCache[date]; // Set<name> or undefined
+
+  const groups = [];
+  if (isCombinedType(eventType)) {
+    const allActive    = allMembers.filter(m => m.active);
+    const jag1Students = allActive.filter(m => m.roleType === 'Student' && (m.group === 'JAG1' || m.group === 'Both'));
+    const jag2Students = allActive.filter(m => m.roleType === 'Student' && m.group === 'JAG2');
+    const olderSS      = allActive.filter(m => m.roleType === 'Older Sunday School');
+    const adults       = allActive.filter(m => m.roleType === 'Adult');
+    [jag1Students, jag2Students, olderSS, adults].forEach(function(arr) { arr.sort(function(a,b){ return a.name.localeCompare(b.name); }); });
+    groups.push({ label: 'JAG 1 Students', members: jag1Students });
+    groups.push({ label: 'JAG 2 Students', members: jag2Students });
+    groups.push({ label: 'Older Sunday School', members: olderSS });
+    groups.push({ label: 'Adults', members: adults });
+  } else {
+    // Separated LG — show per active group
+    const grpsToShow = editingEntries.length > 0 ? editingEntries.map(function(e){ return e.group; }) : activeGroups;
+    grpsToShow.forEach(function(grp) {
+      const members = allMembers.filter(m => m.active && m.group === grp).sort(function(a,b){ return a.name.localeCompare(b.name); });
+      groups.push({ label: grp, members: members });
+    });
+  }
+
+  const totalCount   = groups.reduce(function(s,g){ return s + g.members.length; }, 0);
+  const checkedCount = cached
+    ? groups.reduce(function(s,g){ return s + g.members.filter(function(m){ return cached.has(m.name); }).length; }, 0)
+    : totalCount;
+
+  const panel = document.createElement('details');
+  panel.className = 'attendee-panel';
+
+  const summary = document.createElement('summary');
+  summary.innerHTML = '👥 Attendees <span id="att-count">(' + checkedCount + '/' + totalCount + ')</span>';
+  panel.appendChild(summary);
+
+  const body = document.createElement('div');
+  body.className = 'attendee-panel-body';
+
+  const actDiv = document.createElement('div');
+  actDiv.className = 'att-actions';
+  actDiv.innerHTML = '<button type="button" class="att-toggle" onclick="setAllAtt(true)">Select All</button><button type="button" class="att-toggle" onclick="setAllAtt(false)">Clear All</button>';
+  body.appendChild(actDiv);
+
+  groups.forEach(function(g) {
+    if (!g.members.length) return;
+    const grpDiv = document.createElement('div');
+    grpDiv.innerHTML = '<div class="att-group-label">' + g.label + '</div>';
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'att-row';
+    g.members.forEach(function(m) {
+      const isChecked = !cached || cached.has(m.name);
+      const lbl = document.createElement('label');
+      lbl.innerHTML = '<input type="checkbox" name="att" value="' + m.name.replace(/"/g, '&quot;') + '" ' + (isChecked ? 'checked' : '') + ' onchange="updateAttCount()"> ' + displayName(m.name);
+      rowDiv.appendChild(lbl);
+    });
+    grpDiv.appendChild(rowDiv);
+    body.appendChild(grpDiv);
+  });
+
+  panel.appendChild(body);
+  return panel;
+}
+
+// =============================================
 // Share / WhatsApp
 // =============================================
 function generateShareText(friday, entries) {
@@ -1554,7 +1667,7 @@ function shareCombinedWithNames(friday, entries) {
   const entry      = entriesArr.find(e => e.group === 'Both') || entriesArr.find(e => e.group === 'JAG1') || entriesArr[0];
   const eventType  = entry.eventType || '';
 
-  const allActive    = allMembers.filter(m => m.active);
+  const allActive    = getActiveForShare(toISODate(friday));
   const jag1Students = allActive.filter(m => m.roleType === 'Student' && (m.group === 'JAG1' || m.group === 'Both'));
   const jag2Students = allActive.filter(m => m.roleType === 'Student' && m.group === 'JAG2');
   const olderSS      = allActive.filter(m => m.roleType === 'Older Sunday School');
@@ -1665,10 +1778,11 @@ function shareGroupWithNames(friday, entryOrArr) {
   const entry = Array.isArray(entryOrArr) ? entryOrArr[0] : entryOrArr;
   const grp   = entry.group;
 
-  const dateStr  = formatShareDate(friday);
+  const dateStr    = formatShareDate(friday);
   // Separated LG: exact group match only — 'Both' members attend Combined/Youth Hour, not per-group LG
-  const members  = allMembers.filter(m => m.active && m.group === grp);
-  const hostName = detectHost(entry.venue, members);
+  const allForDate = getActiveForShare(toISODate(friday));
+  const members    = allForDate.filter(m => m.group === grp);
+  const hostName   = detectHost(entry.venue, members);
   const lines    = [];
 
   if (grp === 'JAG2') {
