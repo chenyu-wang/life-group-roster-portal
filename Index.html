@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <!-- Version: 1.28.0 (2026-04-12) -->
+  <!-- Version: 1.28.1 (2026-04-12) -->
   <title>JAG LG Roster</title>
   <style>
     /* ---- Reset & Base ---- */
@@ -199,8 +199,9 @@ let editingMember  = null;
 let dashPast   = 4;   // how many past weeks shown in dashboard
 let dashFuture = 4;   // how many future weeks shown in dashboard
 let _dashBusy  = false;
-let _scheduleDatesCache = null;  // D: invalidated whenever allEntries changes
-let _dupFirstNamesCache = null;  // F: invalidated whenever allMembers changes
+let _scheduleDatesCache  = null;  // D: invalidated whenever allEntries changes
+let _entriesByDateCache  = null;  // invalidated whenever allEntries changes
+let _dupFirstNamesCache  = null;  // F: invalidated whenever allMembers changes
 let _loadGen = 0;               // incremented on each loadData() call; stale responses are discarded
 
 // HTML-escape any string before inserting into innerHTML.
@@ -245,7 +246,8 @@ function loadData() {
       allEntries = data.entries || [];
       allMembers = data.members || [];
       _scheduleDatesCache = null;  // D: invalidate on fresh data
-      _dupFirstNamesCache  = null;  // F: invalidate on fresh data
+      _entriesByDateCache = null;
+      _dupFirstNamesCache = null;  // F: invalidate on fresh data
       const loadingEl = document.getElementById('loading-msg');
       if (loadingEl) loadingEl.remove();
       if (data.version) {
@@ -289,6 +291,7 @@ function _mergeEntriesIntoCache(savedEntries) {
     else allEntries.push(saved);
   });
   _scheduleDatesCache = null;
+  _entriesByDateCache = null;
 }
 
 function finishSave(msg, skipRefresh) {
@@ -405,11 +408,14 @@ function renderHome(resetWindow) {
     c.appendChild(tip);
   }
 
-  const entriesByDate = new Map();
-  allEntries.forEach(e => {
-    if (!entriesByDate.has(e.date)) entriesByDate.set(e.date, []);
-    entriesByDate.get(e.date).push(e);
-  });
+  if (!_entriesByDateCache) {
+    _entriesByDateCache = new Map();
+    allEntries.forEach(e => {
+      if (!_entriesByDateCache.has(e.date)) _entriesByDateCache.set(e.date, []);
+      _entriesByDateCache.get(e.date).push(e);
+    });
+  }
+  const entriesByDate = _entriesByDateCache;
 
   let shownYear = null;
   fridays.slice(startIdx, endIdx + 1).forEach(friday => {
@@ -468,7 +474,8 @@ function buildEventCard(friday, entries, isPast, isUpcoming) {
   const combined  = isCombinedType(eventType);
   const isCancelledOrReplaced = eventType === 'Cancelled' || eventType === 'Replaced';
   const dateSub = combined ? (eventType === 'Youth Hour' ? 'JAG1 + JAG2 + Older Sunday School Students' : eventType === 'Special' ? '' : 'Combined · JAG1 + JAG2') : isCancelledOrReplaced ? '' : 'Separated LG';
-  const timeStr = (entries.find(e => e.time) || {}).time ? formatTime(entries.find(e => e.time).time) : '';
+  const _timeEntry = entries.find(e => e.time);
+  const timeStr = _timeEntry ? formatTime(_timeEntry.time) : '';
   const dateSub2 = [timeStr, dateSub].filter(Boolean).join(' · ');
 
   // ---- Header ----
