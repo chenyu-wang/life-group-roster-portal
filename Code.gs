@@ -1,11 +1,11 @@
 // ============================================================
 // JAG Life Group Roster - Google Apps Script Backend
 // Spreadsheet: https://docs.google.com/spreadsheets/d/1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4
-// Version: 1.27.0 (2026-04-06)
+// Version: 1.28.0 (2026-04-12)
 // ============================================================
 
-const VERSION      = '1.27.0';
-const VERSION_DATE = '2026-04-06';
+const VERSION      = '1.28.0';
+const VERSION_DATE = '2026-04-12';
 
 const SPREADSHEET_ID    = '1Cg9m7lUu536JlSXbY4HifWQpOw9nQ2DtBRDZRzIXIn4';
 const ROSTER_SHEET_NAME = 'Roster';   // year-agnostic — supports 2026 and beyond
@@ -37,12 +37,14 @@ function getAllData() {
   };
 }
 
+function _normalizeStr(s) { return String(s == null ? '' : s).toLowerCase().trim(); }
+
 // Maps header text → column index so reads are schema-version-agnostic.
 // Adding/reordering columns in the sheet never breaks existing reads.
 function _rosterColMap(headers) {
   const m = {};
   headers.forEach(function(h, i) {
-    switch (String(h).toLowerCase().trim()) {
+    switch (_normalizeStr(h)) {
       case 'date':             m.date = i;        break;
       case 'group':            m.group = i;       break;
       case 'event type':       m.eventType = i;   break;
@@ -115,7 +117,7 @@ function getMembers(ss) {
   const data = sheet.getDataRange().getValues();
   // Auto-detect: if row 1 col A is 'Name', headers are in row 1 — members start at index 1.
   // Otherwise row 1 is the notice row — skip to index 2.
-  const memberStartIdx = String(data[0][0]).toLowerCase().trim() === 'name' ? 1 : 2;
+  const memberStartIdx = _normalizeStr(data[0][0]) === 'name' ? 1 : 2;
   const members = [];
 
   for (let i = memberStartIdx; i < data.length; i++) {
@@ -146,12 +148,7 @@ function saveRosterEntry(entry) {
     const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
     if (!sheet) return { success: false, error: 'Roster sheet not found' };
 
-    const dateParts = entry.date.split('-');
-    const dateObj = new Date(
-      parseInt(dateParts[0]),
-      parseInt(dateParts[1]) - 1,
-      parseInt(dateParts[2])
-    );
+    const dateObj = _parseDate(entry.date);
 
     // Read sheet once: serves both header mapping and row write.
     // Building rowData by column position makes writes column-order agnostic —
@@ -222,8 +219,7 @@ function saveRosterEntries(entries) {
     // Sort only when the row order can change: any new row or any entry with a changed date.
     const needsSort = entries.some(function(entry) {
       if (!entry.rowIndex) return true;
-      const dp      = entry.date.split('-');
-      const newDate = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]));
+      const newDate = _parseDate(entry.date);
       const oldCell = data[entry.rowIndex - 1] && data[entry.rowIndex - 1][col.date];
       if (!oldCell) return true;
       const old = new Date(oldCell);
@@ -233,8 +229,7 @@ function saveRosterEntries(entries) {
     });
 
     entries.forEach(function(entry) {
-      const dp      = entry.date.split('-');
-      const dateObj = new Date(parseInt(dp[0]), parseInt(dp[1]) - 1, parseInt(dp[2]));
+      const dateObj = _parseDate(entry.date);
       const rowData = new Array(numCols).fill('');
       const s = function(key, v) { if (col[key] !== undefined) rowData[col[key]] = v; };
       s('date',        dateObj);
@@ -325,132 +320,24 @@ function deleteMember(rowIndex) {
 
 // ---- Helpers ----
 
+// Parses a 'YYYY-MM-DD' string into a local Date without timezone shift.
+function _parseDate(dateStr) {
+  const p = dateStr.split('-');
+  return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+}
+
 function sortRosterSheet(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 2) return;
   // Auto-detect data start row: if row 1 col A is 'Date', headers are in row 1 — data starts at 2.
   // Otherwise a notice row exists in row 1 — data starts at 3.
-  const row1ColA     = String(sheet.getRange(1, 1).getValue()).toLowerCase().trim();
+  const row1ColA     = _normalizeStr(sheet.getRange(1, 1).getValue());
   const dataStartRow = row1ColA === 'date' ? 2 : 3;
   if (lastRow < dataStartRow) return;
   sheet.getRange(dataStartRow, 1, lastRow - dataStartRow + 1, sheet.getLastColumn()).sort([
     { column: 1, ascending: true },
     { column: 2, ascending: true }
   ]);
-}
-
-// ---- Migration: Roster Group="Both" ----
-// Run ONCE after deploying v1.26.0.
-// Merges legacy JAG1+JAG2 row pairs for combined events into a single row with Group="Both".
-// Also cleans up ghost duplicate rows. Idempotent — safe to re-run.
-// Delete this function after confirmed run on the live sheet.
-function migrateRosterToGroupBoth() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
-  if (!sheet) { Logger.log('Roster sheet not found.'); return; }
-
-  const data         = sheet.getDataRange().getValues();
-  const firstRowMap  = _rosterColMap(data[0]);
-  const headerRowIdx = Object.keys(firstRowMap).length > 0 ? 0 : 1;
-  const col          = headerRowIdx === 0 ? firstRowMap : _rosterColMap(data[headerRowIdx]);
-  const dataStart    = headerRowIdx + 2; // 1-indexed first data row (sheet row)
-
-  // Update Group column validation to accept "Both" before writing — the old rule
-  // only allows JAG1/JAG2 and would reject the setValue("Both") calls below.
-  if (col.group !== undefined) {
-    const dataRows = sheet.getMaxRows() - dataStart + 1;
-    if (dataRows > 0) {
-      const v = SpreadsheetApp.newDataValidation()
-        .requireValueInList(['JAG1', 'JAG2', 'Both'], true).setAllowInvalid(false).build();
-      sheet.getRange(dataStart, col.group + 1, dataRows, 1).setDataValidation(v);
-    }
-    SpreadsheetApp.flush();
-  }
-
-  // Index all data rows by date+eventType key
-  const byKey = {}; // key → [{ rowIndex, group, row }]
-  for (let i = dataStart - 1; i < data.length; i++) {
-    const row  = data[i];
-    const date = row[col.date];
-    if (!date) continue;
-    const key = String(date) + '|' + String(row[col.eventType] || '');
-    if (!byKey[key]) byKey[key] = [];
-    byKey[key].push({ rowIndex: i + 1, group: String(row[col.group] || ''), row });
-  }
-
-  const toUpdate  = []; // { rowIndex, colIndex (1-indexed), value }
-  const toDelete  = []; // rowIndex values (1-indexed), deleted bottom-up
-
-  Object.values(byKey).forEach(function(rows) {
-    const et = String((rows[0].row[col.eventType] || '')).trim();
-    if (et === 'Separated LG') return; // per-group rows are correct — leave untouched
-
-    const bothRows = rows.filter(r => r.group === 'Both');
-    const jag1Rows = rows.filter(r => r.group === 'JAG1');
-    const jag2Rows = rows.filter(r => r.group === 'JAG2');
-
-    if (bothRows.length > 0) {
-      // Already migrated: keep first Both row, delete all duplicates and legacy JAG1/JAG2
-      bothRows.slice(1).forEach(r => toDelete.push(r.rowIndex));
-      jag1Rows.forEach(r => toDelete.push(r.rowIndex));
-      jag2Rows.forEach(r => toDelete.push(r.rowIndex));
-      return;
-    }
-
-    // Not yet migrated: pick the JAG1 row (or JAG2 if none) as the keeper
-    const keepRow = jag1Rows[0] || jag2Rows[0];
-    if (!keepRow) return;
-
-    // Change the keeper's Group cell to "Both"
-    toUpdate.push({ rowIndex: keepRow.rowIndex, colIndex: col.group + 1, value: 'Both' });
-
-    // Delete all other JAG1 rows (duplicates) and all JAG2 rows
-    jag1Rows.forEach(r => { if (r !== keepRow) toDelete.push(r.rowIndex); });
-    jag2Rows.forEach(r => toDelete.push(r.rowIndex));
-  });
-
-  // Apply Group cell updates first
-  toUpdate.forEach(u => sheet.getRange(u.rowIndex, u.colIndex).setValue(u.value));
-  SpreadsheetApp.flush();
-
-  // Delete rows bottom-up so row indices don't shift during deletion
-  const sorted = [...new Set(toDelete)].sort((a, b) => b - a);
-  sorted.forEach(rowIndex => sheet.deleteRow(rowIndex));
-  SpreadsheetApp.flush();
-
-  Logger.log('migrateRosterToGroupBoth: updated ' + toUpdate.length + ' rows to Group="Both", deleted ' + sorted.length + ' rows.');
-}
-
-// ---- Utility: Rebuild Last Updated Column ----
-// Run ONCE to reset col M (Last Updated) to a clean datetime column.
-// Clears any stale content/format from data rows, re-writes the header, and applies
-// the correct datetime format. Run formatSheets() afterwards to restore banding.
-function rebuildLastUpdatedColumn() {
-  const ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(ROSTER_SHEET_NAME);
-  if (!sheet) { Logger.log('Roster sheet not found.'); return; }
-
-  const headerRow    = 2;   // post-migration: headers in row 2
-  const dataStartRow = 3;
-  const targetCol    = 13;  // col M (1-indexed)
-  const lastRow      = sheet.getLastRow();
-
-  // Ensure header says 'Last Updated'
-  sheet.getRange(headerRow, targetCol).setValue('Last Updated');
-
-  // Clear all stale content + formatting from data rows, then apply datetime format
-  if (lastRow >= dataStartRow) {
-    const dataRange = sheet.getRange(dataStartRow, targetCol, lastRow - dataStartRow + 1, 1);
-    dataRange.clearContent();
-    dataRange.clearFormat();
-    dataRange.setNumberFormat('dd/mm/yyyy hh:mm');
-  }
-
-  // Match column width from _formatRosterSheet
-  sheet.setColumnWidth(targetCol, 145);
-
-  SpreadsheetApp.flush();
-  Logger.log('Last Updated column (col M) rebuilt. Run formatSheets() to restore banding.');
 }
 
 // ---- Sheet Formatting ----
@@ -597,7 +484,7 @@ function _formatMembersSheet(ss) {
 
   // Auto-detect layout: if row 1 col A is 'Name', headers are in row 1 (pre-migration).
   // Otherwise row 1 is the notice row (post-migration).
-  const row1ColA     = String(sheet.getRange(1, 1).getValue()).toLowerCase().trim();
+  const row1ColA     = _normalizeStr(sheet.getRange(1, 1).getValue());
   const hasNoticeRow = row1ColA !== 'name';
   const headerRow    = hasNoticeRow ? 2 : 1;
   const dataStartRow = hasNoticeRow ? 3 : 2;
@@ -616,7 +503,7 @@ function _formatMembersSheet(ss) {
 
   // --- Read headers from the correct row for dropdown/checkbox column detection ---
   const headers = sheet.getRange(headerRow, 1, 1, DATA_COL_COUNT).getValues()[0];
-  const lower   = headers.map(function(h) { return String(h).toLowerCase().trim(); });
+  const lower   = headers.map(_normalizeStr);
 
   // --- Group: dropdown ---
   const groupIdx = lower.indexOf('group');
